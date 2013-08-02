@@ -24,9 +24,9 @@ sub run {
     # to force the upgrade to re-run. Also check for the new YAML-style pugin
     # ID ("ajaxrating") exists, which means the plugin has completed
     # installation.
-    if ( 
-        $cfg->pluginschemaversion->{'AjaxRating/AjaxRating.pl'}
-        && $cfg->pluginschemaversion->{'ajaxrating'}
+    if (   ref( $cfg->PluginSchemaVersion ) eq 'HASH'
+        && $cfg->PluginSchemaVersion->{'AjaxRating/AjaxRating.pl'}
+        && $cfg->PluginSchemaVersion->{'ajaxrating'}
     ) {
         # Reset the new plugin's schema version to force the upgrade to run.
         $cfg->set( 'PluginSchemaVersion', 'ajaxrating=1', 1 );
