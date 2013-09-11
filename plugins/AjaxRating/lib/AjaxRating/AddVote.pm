@@ -31,7 +31,7 @@ sub vote {
     return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
 
-    # Check that the submitted vote has been set up for this object type on 
+    # Check that the submitted vote has been set up for this object type on
     # this blog.
     my $plugin = MT->component('ajaxrating');
     my $config = $plugin->get_config_hash('blog:'.$q->param('blog_id'));
@@ -39,7 +39,7 @@ sub vote {
     return $app->_send_error( $format, "Invalid object type.")
         if ($config->{ratingl} && ($obj_type ne 'entry') && ($obj_type ne 'blog'));
 
-    # Refuse any vote that has somehow exceeded the maximum number of scoring 
+    # Refuse any vote that has somehow exceeded the maximum number of scoring
     # points.
     my $max_points_setting = $q->param('obj_type') . "_max_points";
     my $max_points = $config->{$max_points_setting} || 10;
@@ -47,9 +47,9 @@ sub vote {
         return $app->_send_error( $format, "That vote exceeds the maximum for this item.");
     }
 
-    # Start the real work: check if the user has already voted on this object. 
-    # If they have, give up. If they have *not*, save their vote (to the 
-    # 'vote' datasource) and update the voting summary (in the 'votesummary' 
+    # Start the real work: check if the user has already voted on this object.
+    # If they have, give up. If they have *not*, save their vote (to the
+    # 'vote' datasource) and update the voting summary (in the 'votesummary'
     # datasource). Lastly, republish, if required.
     my $vote;
     if ( $plugin->get_config_value('enable_ip_checking', 'system') ) {
@@ -96,7 +96,7 @@ sub vote {
         $vote->score($q->param('r'));
         $vote->save or die $vote->errstr;
 
-        # Update the Vote Summary. The summary is used because it will let 
+        # Update the Vote Summary. The summary is used because it will let
         # publishing happen faster (loading one summary row to publish results
         # is faster than loading many AjaxRating::Vote records).
         my $votesummary = AjaxRating::VoteSummary->load({
@@ -104,7 +104,7 @@ sub vote {
             obj_id   => $vote->obj_id,
         });
 
-        # If no VoteSummary was found for this object, create one and populate 
+        # If no VoteSummary was found for this object, create one and populate
         # it with "getting started" values.
         if (!$votesummary) {
             $votesummary = AjaxRating::VoteSummary->new;
@@ -123,7 +123,7 @@ sub vote {
             sprintf("%.1f",$votesummary->total_score / $votesummary->vote_count)
         );
 
-        # Update the voting distribution, which makes it easy to output 
+        # Update the voting distribution, which makes it easy to output
         # "X Stars has received Y votes"
         my $yaml = YAML::Tiny->read_string( $votesummary->vote_dist );
         $yaml = YAML::Tiny->new if !$yaml; # No previously-saved data.
@@ -151,11 +151,17 @@ sub vote {
                     $entry = $ping->entry;
                 }
                 if ($entry && $config->{rebuild} eq "1") {
-                    $app->publisher->_rebuild_entry_archive_type( Entry => $entry, ArchiveType => 'Individual');
+                    $app->publisher->_rebuild_entry_archive_type(
+                        Entry       => $entry,
+                        ArchiveType => 'Individual',
+                    );
                 } elsif (($obj_type eq "category") && $config->{rebuild} eq "1") {
                     use MT::Category;
                     my $category = MT::Category->load($vote->obj_id);
-                    $app->publisher->_rebuild_entry_archive_type( Category => $category, ArchiveType => 'Category');
+                    $app->publisher->_rebuild_entry_archive_type(
+                        Category    => $category,
+                        ArchiveType => 'Category',
+                    );
                 } elsif ($entry && $config->{rebuild} eq "2") {
                     $app->rebuild_entry( Entry => $entry);
                     $app->rebuild_indexes( BlogID => $q->param('blog_id'));
@@ -188,71 +194,86 @@ sub vote {
 
 # remove rating/vote
 sub unvote {
-	my $app = shift;
+    my $app = shift;
     my $q = $app->{query};
     my $format = $q->param('format') || 'text';
     return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
     my $plugin = MT->component('ajaxrating');
-	my $config = $plugin->get_config_hash('blog:'.$q->param('blog_id'));
-	my $obj_type = $q->param('obj_type');
-	return $app->_send_error( $format, "Invalid object type.")
-		if ($config->{ratingl} && ($obj_type ne 'entry') && ($obj_type ne 'blog'));
+    my $config = $plugin->get_config_hash('blog:'.$q->param('blog_id'));
+    my $obj_type = $q->param('obj_type');
+    return $app->_send_error( $format, "Invalid object type.")
+        if ($config->{ratingl} && ($obj_type ne 'entry') && ($obj_type ne 'blog'));
 
     my ($session, $voter) = $app->get_commenter_session;
     return $app->_send_error( $format, "Not logged in.")
-		if (!$voter);
-		
-	my $vote = AjaxRating::Vote->load({ voter_id => $voter->id, obj_type => $q->param('obj_type'), obj_id => $q->param('obj_id') });
+        if (!$voter);
 
-	if (!$vote) {
-	    return $app->_send_error( $app, $format, "Not found");
-	} else {
-		$vote->remove;
+    my $vote = AjaxRating::Vote->load({
+        voter_id => $voter->id,
+        obj_type => $q->param('obj_type'),
+        obj_id => $q->param('obj_id'),
+    });
 
-		my $votesummary = AjaxRating::VoteSummary->load({ obj_type => $vote->obj_type, obj_id => $vote->obj_id });
-		if ($votesummary) {
-    		$votesummary->vote_count($votesummary->vote_count - 1);
-    		if ($votesummary->vote_count == 0) {
-    		    $votesummary->total_score(0);
-    		    $votesummary->avg_score(0);
-    		    $votesummary->remove;
-    		} else {
-        		$votesummary->total_score($votesummary->total_score - $vote->score);
-        		$votesummary->avg_score(sprintf("%.1f",$votesummary->total_score / $votesummary->vote_count));	
-        		$votesummary->save;	
-        	}	
-    	}
-		if ($config->{rebuild}) {
-	  		MT::Util::start_background_task(sub {
-				my $entry;
-				use MT::Entry;
-				if (($obj_type eq 'entry') || ($obj_type eq 'page') || ($obj_type eq 'topic')) {
-					$entry = MT::Entry->load($vote->obj_id);
-				} elsif ($obj_type eq 'comment') {
-					use MT::Comment;
-					my $comment = MT::Comment->load($vote->obj_id);
-					$entry = $comment->entry;
-				} elsif ($obj_type eq 'ping') {
-					use MT::TBPing;
-					my $ping = MT::TBPing->load($vote->obj_id);
-					$entry = $ping->entry;
-				}
-				if ($entry && $config->{rebuild} eq "1") {
-					$app->publisher->_rebuild_entry_archive_type( Entry => $entry, ArchiveType => 'Individual');
-				} elsif (($obj_type eq "category") && $config->{rebuild} eq "1") {
-					use MT::Category;
-					my $category = MT::Category->load($vote->obj_id);
-					$app->publisher->_rebuild_entry_archive_type( Category => $category, ArchiveType => 'Category');
-				} elsif ($entry && $config->{rebuild} eq "2") {
-					$app->rebuild_entry( Entry => $entry);
-					$app->rebuild_indexes( BlogID => $q->param('blog_id'));
-				} elsif ($config->{rebuild} eq "3") {
-					$app->rebuild_indexes( BlogID => $q->param('blog_id'));
-				}
-  			});  ### end of background task
-		}
-		if ($format eq 'json') {
+    if (!$vote) {
+        return $app->_send_error( $app, $format, "Not found");
+    } else {
+        $vote->remove;
+
+        my $votesummary = AjaxRating::VoteSummary->load({
+            obj_type => $vote->obj_type,
+            obj_id   => $vote->obj_id,
+        });
+        if ($votesummary) {
+            $votesummary->vote_count($votesummary->vote_count - 1);
+            if ($votesummary->vote_count == 0) {
+                $votesummary->total_score(0);
+                $votesummary->avg_score(0);
+                $votesummary->remove;
+            } else {
+                $votesummary->total_score($votesummary->total_score - $vote->score);
+                $votesummary->avg_score(
+                    sprintf("%.1f",$votesummary->total_score / $votesummary->vote_count)
+                );
+                $votesummary->save;
+            }
+        }
+        if ($config->{rebuild}) {
+            MT::Util::start_background_task(sub {
+                my $entry;
+                use MT::Entry;
+                if (($obj_type eq 'entry') || ($obj_type eq 'page') || ($obj_type eq 'topic')) {
+                    $entry = MT::Entry->load($vote->obj_id);
+                } elsif ($obj_type eq 'comment') {
+                    use MT::Comment;
+                    my $comment = MT::Comment->load($vote->obj_id);
+                    $entry = $comment->entry;
+                } elsif ($obj_type eq 'ping') {
+                    use MT::TBPing;
+                    my $ping = MT::TBPing->load($vote->obj_id);
+                    $entry = $ping->entry;
+                }
+                if ($entry && $config->{rebuild} eq "1") {
+                    $app->publisher->_rebuild_entry_archive_type(
+                        Entry       => $entry,
+                        ArchiveType => 'Individual',
+                    );
+                } elsif (($obj_type eq "category") && $config->{rebuild} eq "1") {
+                    use MT::Category;
+                    my $category = MT::Category->load($vote->obj_id);
+                    $app->publisher->_rebuild_entry_archive_type(
+                        Category    => $category,
+                        ArchiveType => 'Category',
+                    );
+                } elsif ($entry && $config->{rebuild} eq "2") {
+                    $app->rebuild_entry( Entry => $entry);
+                    $app->rebuild_indexes( BlogID => $q->param('blog_id'));
+                } elsif ($config->{rebuild} eq "3") {
+                    $app->rebuild_indexes( BlogID => $q->param('blog_id'));
+                }
+            });  ### end of background task
+        }
+        if ($format eq 'json') {
             return $app->_send_json_response({
                 status      => "OK",
                 message     => "Vote Successful",

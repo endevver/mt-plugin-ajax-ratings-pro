@@ -176,13 +176,13 @@ sub listing_vote_distribution {
 
     # Read the saved YAML vote_distribution, and convert it into a hash.
     my $yaml = YAML::Tiny->read_string( $votesummary->vote_dist );
-    
+
     # If there is no vote_distribution data, we need to create it. This should
     # have been done during the upgrade already.
     $yaml = _create_vote_distribution_data($votesummary) if !$yaml;
 
-    # Load the entry_max_points or comment_max_points config setting 
-    # (depending upon the object type), or just fall back to the value 10. 
+    # Load the entry_max_points or comment_max_points config setting
+    # (depending upon the object type), or just fall back to the value 10.
     # 10 is used as a fallback elsewhere for the max points, so it's a safe
     # guess that it's good to use.
     my $plugin = MT->component('ajaxrating');
@@ -190,9 +190,9 @@ sub listing_vote_distribution {
         $votesummary->obj_type.'_max_points',
         'blog:'.$votesummary->blog_id
     ) || '10';
-    
+
     # Make sure that all possible scores have been marked--at least with a 0.
-    # The default value is set here (as opposed to in the foreach that outputs 
+    # The default value is set here (as opposed to in the foreach that outputs
     # the values) so that different types of raters (which may have positive
     # or negative values) don't get confused.
     my $count = 1;
@@ -224,7 +224,7 @@ sub listing_vote_distribution {
 sub _create_vote_distribution_data {
     my ($votesummary) = @_;
 
-    # Use the Vote Summary object to load the vote data for this object id 
+    # Use the Vote Summary object to load the vote data for this object id
     # and type.
     my $iter = MT->model('ajaxrating_vote')->load_iter({
         obj_id => $votesummary->obj_id,
@@ -309,7 +309,7 @@ sub ajax_rating_user_vote_count {
     } else {
         $author = $ctx->stash('author');
     }
-    return $ctx->error("Need author context for AjaxRatingUserVoteCount") 
+    return $ctx->error("Need author context for AjaxRatingUserVoteCount")
         if !$author;
     my $obj_type = $args->{obj_type} || 'entry';
     my $count = MT->model('ajaxrating_vote')->count({ voter_id => $author->id, obj_type => $obj_type });
@@ -325,7 +325,7 @@ sub listing_user_votes {
     } else {
         $author = $ctx->stash('author');
     }
-    return $ctx->error("Need author context for AjaxRatingUserVoteCount") 
+    return $ctx->error("Need author context for AjaxRatingUserVoteCount")
         if !$author;
     my $obj_type = $args->{obj_type} || 'entry';
     my $lastn = $args->{lastn} || 10;
@@ -333,19 +333,19 @@ sub listing_user_votes {
     my $direction = $args->{direction} || 'descend';
     my $offset = $args->{offset} || 0;
     my $blog_id = $args->{blog_id};
-    my @votes = MT->model('ajaxrating_vote')->load({ 
-                    voter_id => $author->id, 
+    my @votes = MT->model('ajaxrating_vote')->load({
+                    voter_id => $author->id,
                     obj_type => $obj_type,
                     ($blog_id ? (blog_id => $blog_id) : ()),
                      }, {
-                    limit => $lastn, 
-                    offset => $offset, 
-                    sort => 'created_on', 
+                    limit => $lastn,
+                    offset => $offset,
+                    sort => 'created_on',
                     direction => $direction });
     if (!@votes) {
         return MT::Template::Context::_hdlr_pass_tokens_else(@_);
     }
-    
+
     my $old_way = 0;
     if ($old_way) {
         my @obj_ids;
@@ -462,13 +462,13 @@ HTML
 HTML
     } elsif ($rater_type eq 'onclick_js') {
         my $points = defined ($args->{points}) ? $args->{points} : 1;
-        $html = <<HTML; 
+        $html = <<HTML;
 pushRating('$obj_type',$obj_id,$points,$blog_id,$total_score,$vote_count,$author_id); return(false);
 HTML
     } else {
         my $static_path = MT->instance->static_path . "plugins/AjaxRating/images";
         my $report_icon = '';
-        if ($args->{report_icon}) { 
+        if ($args->{report_icon}) {
             $report_icon = <<HTML;
             <a href="#" title="Report this comment" onclick="reportComment($obj_id); return(false);"><img src="$static_path/report.gif" alt="Report this comment" /></a>
 HTML
@@ -582,7 +582,7 @@ sub below_threshold {
         $score = $votesummary->total_score;
     } else {
         $score = $votesummary->avg_score;
-    }   
+    }
     if ($votesummary->total_score < $config->{comment_threshold}) {
         return 1;
     } else {
@@ -631,8 +631,8 @@ sub refresh_hot {
         $hot->author_id($object->author_id);
         $hot->vote_count($hot_vote_count);
         $hot->total_score($hot_total_score);
-        $hot->avg_score(sprintf("%.1f",$hot_total_score / $hot_vote_count));    
-        $hot->save; 
+        $hot->avg_score(sprintf("%.1f",$hot_total_score / $hot_vote_count));
+        $hot->save;
     }
     my $refresh_time = time - $start_refresh;
     MT->log({
@@ -673,7 +673,7 @@ sub delete_fraud {
                 if ($vote->subnet eq $recent_votes[$count]->subnet) {
                     $object->vote_count($object->vote_count - 1);
                     $object->total_score($object->total_score - $vote->score);
-                    $object->avg_score(sprintf("%.1f",$object->total_score / $object->vote_count)); 
+                    $object->avg_score(sprintf("%.1f",$object->total_score / $object->vote_count));
                     $object->save;
                     $vote->remove;
                     MT->log('Ajax Ratings has deleted vote ' . $vote->id . ' with duplicate subnet ' . $vote->subnet . ' on ' . $vote->obj_type . ' ' . $vote->obj_id);
@@ -719,8 +719,8 @@ sub migrate_community_votes {
                 $vote->created_on($fav->created_on);
                 $vote->modified_on($fav->modified_on);
                 $vote->save;
-                
-                # Update the Vote Summary. The summary is used because it will let 
+
+                # Update the Vote Summary. The summary is used because it will let
                 # publishing happen faster (loading one summary row to publish results
                 # is faster than loading many AjaxRating::Vote records).
                 my $votesummary = AjaxRating::VoteSummary->load({
@@ -728,7 +728,7 @@ sub migrate_community_votes {
                     obj_id   => $vote->obj_id,
                 });
 
-                # If no VoteSummary was found for this object, create one and populate 
+                # If no VoteSummary was found for this object, create one and populate
                 # it with "getting started" values.
                 if (!$votesummary) {
                     $votesummary = AjaxRating::VoteSummary->new;
@@ -749,7 +749,7 @@ sub migrate_community_votes {
                     sprintf("%.1f",$votesummary->total_score / $votesummary->vote_count)
                 );
 
-                # Update the voting distribution, which makes it easy to output 
+                # Update the voting distribution, which makes it easy to output
                 # "X Stars has received Y votes"
                 my $yaml = YAML::Tiny->read_string( $votesummary->vote_dist );
                 $yaml = YAML::Tiny->new if !$yaml; # No previously-saved data.
@@ -763,7 +763,7 @@ sub migrate_community_votes {
             }
             $plugin->set_config_value('migrate', 0, 'system');
         }
-        
+
         my $migrate_time = time - $start_migrate;
         MT->log({
            message => "Ajax Ratings Plugin has migrated " . $count . " Community Pack votes (" . $migrate_time . " seconds)",
@@ -882,8 +882,8 @@ sub session_state {
     my ($cb, $app, $c, $commenter) = @_;
     my $q = $app->param if $app->can('param');
     my $blog_id = $q->param('blog_id') if $q;
-    my @votes = MT->model('ajaxrating_vote')->load({ 
-                    voter_id => $commenter->id, 
+    my @votes = MT->model('ajaxrating_vote')->load({
+                    voter_id => $commenter->id,
                     obj_type => 'entry',
                     ($blog_id ? (blog_id => $blog_id) : ()),
     });
@@ -958,7 +958,7 @@ sub install_templates {
         $terms->{blog_id} = $blog_id;
         $terms->{type} = $val->{type};
         $terms->{name} = $val->{name};
-            
+
         $tmpl = MT::Template->load($terms);
 
         if ($tmpl) {
@@ -982,8 +982,8 @@ sub template {
     my $tmpl;
 
     rebuild_ar_templates($app);
-    
-    # If the Template Installer plugin is installed, show the "Install 
+
+    # If the Template Installer plugin is installed, show the "Install
     # Templates" link.
     if ( eval { MT->component('TemplateInstaller') } ) {
         $tmpl = <<HTML;
@@ -1159,14 +1159,14 @@ sub rebuild_ar_templates {
     my @tmpls = ("Ajax Rating Styles","Ajax Rating Javascript");
     foreach my $tmpl_name (@tmpls) {
         my $tmpl = MT::Template->load({ blog_id => $blog_id, name => $tmpl_name, type => 'index', rebuild_me => 0 });
-        if ($tmpl) { 
+        if ($tmpl) {
             $app->rebuild_indexes( BlogID => $blog_id, Template => $tmpl, Force => 1 )
                 or MT->log($app->errstr);
         }
     }
 }
 
-# When upgrading to schema_version 3, vote distribution data needs to be 
+# When upgrading to schema_version 3, vote distribution data needs to be
 # calculated.
 sub upgrade_add_vote_distribution {
     my ($obj) = @_;
