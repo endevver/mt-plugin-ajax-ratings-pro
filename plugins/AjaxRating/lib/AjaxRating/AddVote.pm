@@ -28,7 +28,7 @@ sub vote {
     my $app = shift;
     my $q = $app->{query};
     my $format = $q->param('format') || 'text';
-    return _send_error( $app, $format, "Invalid request, must use POST.")
+    return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
 
     # Check that the submitted vote has been set up for this object type on 
@@ -36,7 +36,7 @@ sub vote {
     my $plugin = MT->component('ajaxrating');
     my $config = $plugin->get_config_hash('blog:'.$q->param('blog_id'));
     my $obj_type = $q->param('obj_type');
-    return _send_error( $app, $format, "Invalid object type.")
+    return $app->_send_error( $format, "Invalid object type.")
         if ($config->{ratingl} && ($obj_type ne 'entry') && ($obj_type ne 'blog'));
 
     # Refuse any vote that has somehow exceeded the maximum number of scoring 
@@ -44,7 +44,7 @@ sub vote {
     my $max_points_setting = $q->param('obj_type') . "_max_points";
     my $max_points = $config->{$max_points_setting} || 10;
     if ($q->param('r') > $max_points) {
-        return _send_error( $app, $format, "That vote exceeds the maximum for this item.");
+        return $app->_send_error( $format, "That vote exceeds the maximum for this item.");
     }
 
     # Start the real work: check if the user has already voted on this object. 
@@ -61,7 +61,7 @@ sub vote {
         });
     }
     if ($vote) {
-        return _send_error( $app, $format, "You have already voted on this item.");
+        return $app->_send_error( $format, "You have already voted on this item.");
     } else {
 
         my ($session, $voter) = $app->get_commenter_session;
@@ -82,7 +82,8 @@ sub vote {
                 obj_type => $q->param('obj_type'),
                 obj_id   => $q->param('obj_id'),
             });
-            return _send_error( $app, $format, "You have already voted on this item.") if $vote;
+            return $app->_send_error( $format, "You have already voted on this item.")
+                if $vote;
         }
         # This user has not previously voted on this object. Record their vote
         # and the score they gave.
@@ -165,21 +166,22 @@ sub vote {
         }
 
         if ($format eq 'json') {
-            return _send_json_response( $app,
-                { status => "OK", 
-                  message => "Vote Successful",
-                  obj_type => $votesummary->obj_type,
-                  obj_id => $votesummary->obj_id,
-                  score => $q->param('r'),
-                  total_score => $votesummary->total_score,
-                  vote_count => $votesummary->vote_count } );
+            return $app->_send_json_response({
+                status      => "OK",
+                message     => "Vote Successful",
+                obj_type    => $votesummary->obj_type,
+                obj_id      => $votesummary->obj_id,
+                score       => $q->param('r'),
+                total_score => $votesummary->total_score,
+                vote_count  => $votesummary->vote_count,
+            });
         } else {
-            # Return a string, which uses "||" as separators. The returned string 
-            # is parsed by javascript -- splitting the "||" to create an array of 
-            # values.
-            return "OK||" . $votesummary->obj_type . "||" . $votesummary->obj_id 
-                . "||" . $q->param('r') . "||" . $votesummary->total_score . "||" 
-                . $votesummary->vote_count;
+            # Return a string, which uses "||" as separators. The returned
+            # string is parsed by javascript -- splitting the "||" to create an
+            # array of values.
+            return "OK||" . $votesummary->obj_type . "||" . $votesummary->obj_id
+                . "||" . $q->param('r') . "||" . $votesummary->total_score
+                . "||" . $votesummary->vote_count;
         }
     }
 }
@@ -189,22 +191,22 @@ sub unvote {
 	my $app = shift;
     my $q = $app->{query};
     my $format = $q->param('format') || 'text';
-    return _send_error( $app, $format, "Invalid request, must use POST.")
+    return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
     my $plugin = MT->component('ajaxrating');
 	my $config = $plugin->get_config_hash('blog:'.$q->param('blog_id'));
 	my $obj_type = $q->param('obj_type');
-	return _send_error( $app, $format, "Invalid object type.")
+	return $app->_send_error( $format, "Invalid object type.")
 		if ($config->{ratingl} && ($obj_type ne 'entry') && ($obj_type ne 'blog'));
 
     my ($session, $voter) = $app->get_commenter_session;
-    return _send_error( $app, $format, "Not logged in.")
+    return $app->_send_error( $format, "Not logged in.")
 		if (!$voter);
 		
 	my $vote = AjaxRating::Vote->load({ voter_id => $voter->id, obj_type => $q->param('obj_type'), obj_id => $q->param('obj_id') });
 
 	if (!$vote) {
-	    return _send_error( $app, $format, "Not found");
+	    return $app->_send_error( $app, $format, "Not found");
 	} else {
 		$vote->remove;
 
@@ -251,24 +253,25 @@ sub unvote {
   			});  ### end of background task
 		}
 		if ($format eq 'json') {
-            return _send_json_response( $app,
-                { status => "OK", 
-                  message => "Vote Successful",
-                  obj_type => $votesummary->obj_type,
-                  obj_id => $votesummary->obj_id,
-                  score => $q->param('r'),
-                  total_score => $votesummary->total_score,
-                  vote_count => $votesummary->vote_count } );
+            return $app->_send_json_response({
+                status      => "OK",
+                message     => "Vote Successful",
+                obj_type    => $votesummary->obj_type,
+                obj_id      => $votesummary->obj_id,
+                score       => $q->param('r'),
+                total_score => $votesummary->total_score,
+                vote_count  => $votesummary->vote_count,
+            });
         } else {
-            # Return a string, which uses "||" as separators. The returned string 
-            # is parsed by javascript -- splitting the "||" to create an array of 
-            # values.
-            return "OK||" . $votesummary->obj_type . "||" . $votesummary->obj_id 
-                . "||" . $q->param('r') . "||" . $votesummary->total_score . "||" 
-                . $votesummary->vote_count;
+            # Return a string, which uses "||" as separators. The returned
+            # string is parsed by javascript -- splitting the "||" to create an
+            # array of values.
+            return "OK||" . $votesummary->obj_type . "||" . $votesummary->obj_id
+                . "||" . $q->param('r') . "||" . $votesummary->total_score
+                . "||" . $votesummary->vote_count;
         }
-	
-	} 
+
+    }
 
 }
 
