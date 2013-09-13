@@ -60,15 +60,16 @@ following example:
 As you'll notice, the loop meta variables are also supported, including
 `__first__`, `__last__`, `__odd__`, `__even__`, and `__counter__`.
 
-# (Optional) JSON Output For Voting Script
+# (Optional)  JSON Output For Voting Script
 
-(Advanced Feature) Staring in version 1.4.1, the voting script (mt-vote.cgi) can send
-its responses in JSON format. To request JSON format responses, POSTs to the voting
-script must include a 'format' parameter set to 'json' (&format=json).
+(Advanced Feature) Staring in version 1.4.1, the voting script (`mt-vote.cgi`)
+can send its responses in JSON format. To request JSON format responses, POSTs
+to the voting script must include a `format` parameter set to `json` (`&format=json`).
 
 Example responses:
 
 success:
+
     {
         "obj_id": "64246",    # object id of object
         "status": "OK",       # OK indicates a successful save
@@ -78,9 +79,31 @@ success:
         "obj_type": "entry",  # type of object, usually 'entry'
         "message": "Vote Successful"
     }
+
 error:
+
     {
         "status": "ERR",
         "message": "You have already voted on this item."
     }
 
+# Get Votes Endpoint
+
+The endpoint `mt-getvotes.cgi` returns the vote summary information for any
+given object. Data must be submitted through a POST request and must include
+blog ID (`blog_id`), object ID (`obj_id`), and object type (`obj_type`).
+Optionally, the `format` parameter can be set to `json`; it is `text` by
+default. Example:
+
+    http://myblog.com/mt/plugins/AjaxRating/mt-getvotes.cgi?blog_id=7&obj_type=entry&obj_id=123&format=json
+
+Generates a JSON response such as:
+
+    {
+        "obj_type":"entry",
+        "obj_id":"123",
+        "status":"OK",
+        "vote_count":"1",
+        "total_score":"5",
+        "message":"Vote summary retreived."
+    }
