@@ -25,9 +25,10 @@ sub init {
 
 # A vote has been submitted!
 sub vote {
-    my $app = shift;
-    my $q = $app->{query};
+    my $app    = shift;
+    my $q      = $app->can('query') ? $app->query : $app->param;
     my $format = $q->param('format') || 'text';
+
     return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
 
@@ -194,11 +195,13 @@ sub vote {
 
 # remove rating/vote
 sub unvote {
-    my $app = shift;
-    my $q = $app->{query};
+    my $app    = shift;
+    my $q      = $app->can('query') ? $app->query : $app->param;
     my $format = $q->param('format') || 'text';
+
     return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
+
     my $plugin = MT->component('ajaxrating');
     my $config = $plugin->get_config_hash('blog:'.$q->param('blog_id'));
     my $obj_type = $q->param('obj_type');
