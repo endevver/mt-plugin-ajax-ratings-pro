@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/local/bin/perl -w
 #
 #  Movable Type Plugin
 # http://mt-hacks.com/ajaxrating.html
