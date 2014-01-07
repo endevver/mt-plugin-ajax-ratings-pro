@@ -119,6 +119,7 @@ sub list_properties {
             label   => 'Number of Votes',
             order   => 300,
             display => 'default',
+            col     => 'vote_count',
             html    => sub {
                 my ( $prop, $obj, $app, $opts ) = @_;
                 
