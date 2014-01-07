@@ -63,7 +63,30 @@ applications:
     cms:
         methods:
             ajaxrating_install_templates: AjaxRating::install_templates
-
+        menus:
+            ratings:
+                label: 'Ratings'
+                order: 681
+            ratings:vote_summaries:
+                label: 'Vote Summaries Log'
+                mode: list
+                args:
+                    _type: ajaxrating_votesummary
+                order: 100
+                view:
+                    - system
+                    - website
+                    - blog
+            ratings:vote_log:
+                label: 'Vote Activity Log'
+                mode: list
+                args:
+                    _type: ajaxrating_vote
+                order: 101
+                view:
+                    - system
+                    - website
+                    - blog
 
 tasks:
     refresh_hotobjects:
@@ -157,3 +180,48 @@ socialstats_services:
       label_singular: Vote
       label_plural: Votes
       verb: Vote
+
+listing_screens:
+    ajaxrating_vote:
+        screen_label: 'Vote Activity Log'
+        primary:
+            - blog_name
+            - object
+        default_sort_key: created_on
+    ajaxrating_votesummary:
+        screen_label: 'Vote Summaries Log'
+        primary:
+            - blog_name
+            - object
+        default_sort_key: created_on
+
+list_properties:
+    ajaxrating_vote: $AjaxRating::AjaxRating::Vote::list_properties
+    ajaxrating_votesummary: $AjaxRating::AjaxRating::VoteSummary::list_properties
+
+system_filters:
+    # Note that the same filters are being used for the Vote and Summary records
+    ajaxrating_vote: $AjaxRating::AjaxRating::CMS::system_filters
+    ajaxrating_votesummary: $AjaxRating::AjaxRating::CMS::system_filters
+
+list_actions:
+    ajaxrating_vote:
+        delete:
+            label: 'Delete'
+            order: 100
+            code: $AjaxRating::AjaxRating::CMS::vote_delete
+            continue_prompt: 'Are you sure you want to delete the selected Vote record(s)?'
+            button: 1
+    ajaxrating_votesummary:
+        recalculate:
+            label: 'Recalculate'
+            order: 100
+            code: $AjaxRating::AjaxRating::CMS::votesummary_recalculate
+            continue_prompt: "Recalculate the summary data for the selected object(s)? \nNote that objects with a lot of Vote records can be slow to process."
+            button: 1
+        delete:
+            label: 'Delete'
+            order: 200
+            code: $AjaxRating::AjaxRating::CMS::votesummary_delete
+            continue_prompt: "Are you sure you want to delete the selected Summary record(s)? \nNote that all related Vote records will also be deleted."
+            button: 1

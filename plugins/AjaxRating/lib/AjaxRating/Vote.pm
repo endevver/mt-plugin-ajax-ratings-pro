@@ -1,6 +1,7 @@
 package AjaxRating::Vote;
 use strict;
 use warnings;
+use YAML::Tiny;
 
 use MT::Object;
 @AjaxRating::Vote::ISA = qw(MT::Object);
@@ -43,6 +44,70 @@ sub subnet {
     my @parts = split(/\./,$ip);
     my $subnet = $parts[0] . "." . $parts[1] . "." . $parts[2];
     return $subnet;
+}
+
+# Properties for the listing framework, to show the vote activity log.
+sub list_properties {
+    require AjaxRating::CMS;
+    return {
+        id => {
+            label   => 'ID',
+            display => 'optional',
+            order   => 1,
+            auto    => 1,
+        },
+        blog_name => {
+            base  => '__common.blog_name',
+            label => sub {
+                MT->app->blog
+                    ? MT->translate('Blog Name')
+                    : MT->translate('Website/Blog Name');
+            },
+            display   => 'default',
+            site_name => sub { MT->app->blog ? 0 : 1 },
+            order     => 99,
+        },
+        obj_type => {
+            base    => '__virtual.string',
+            label   => 'Target Object Type',
+            order   => 100,
+            display => 'default',
+            col     => 'obj_type',
+            auto    => 1,
+        },
+        obj_id => {
+            base    => '__virtual.integer',
+            label   => 'Target Object ID',
+            order   => 101,
+            display => 'optional',
+            col     => 'obj_id',
+            auto    => 1,
+        },
+        object => {
+            label   => 'Target Object',
+            order   => 102,
+            display => 'default',
+            html    => \&AjaxRating::CMS::list_prop_object_content,
+        },
+        score => {
+            base    => '__virtual.float',
+            label   => 'Score',
+            order   => 200,
+            display => 'default',
+            col     => 'score',
+        },
+        created_by => {
+            base    => '__virtual.author_name',
+            label   => 'Created By',
+            order   => 800,
+            display => 'default',
+        },
+        created_on => {
+            base    => '__virtual.created_on',
+            order   => 810,
+            display => 'default',
+        },
+    };
 }
 
 1;
