@@ -118,31 +118,55 @@ sub list_prop_object_content {
     my ( $prop, $obj, $app, $opts ) = @_;
     my $obj_id   = $obj->obj_id;
     my $obj_type = $obj->obj_type;
+    my $edit_url = '';
 
-    my $target_obj = $app->model($obj_type)
+    my $target_obj = $app->registry('object_types', $obj_type)
+        && $app->model($obj_type)
         && $app->model( $obj_type )->load( $obj_id )
             or return 'Target object not found';
 
-    my $edit_url = $app->uri(
-        mode =>'view',
-        args => {
-            '_type'   => $target_obj->class,
-            'id'      => $target_obj->id,
-            'blog_id' => $target_obj->blog_id
-        },
-    );
-    
-    my $view_url = $target_obj->permalink;
+    if ( $obj_type =~ /entry|page/ ) {
+        $edit_url = $app->uri(
+            mode =>'view',
+            args => {
+                '_type'   => $target_obj->class,
+                'id'      => $target_obj->id,
+                'blog_id' => $target_obj->blog_id
+            },
+        );
 
-    return $target_obj->title
+        return $target_obj->title
         # Add the "Edit" link
-        . ' <a target="_blank" href="' . $edit_url . '"><img src="'
+            . ' <a target="_blank" href="' . $edit_url . '"><img src="'
             . $app->static_path . 'images/status_icons/draft.gif" '
             . 'width="9" height="9" alt="Edit" title="Edit" /></a>'
         # Add the "View" link
-        . ' <a target="_blank" href="' . $view_url . '"><img src="'
-            . $app->static_path . 'images/status_icons/view.gif" '
-            . 'width="13" height="9" alt="View" title="View" /></a>';
+            .' <a target="_blank" href="' . $target_obj->permalink
+            . '"><img src="' . $app->static_path
+            . 'images/status_icons/view.gif" width="13" height="9" alt="View" '
+            . 'title="View" /></a>';
+    }
+    elsif ( $obj_type eq 'comment' ) {
+        $edit_url = $app->uri(
+            mode =>'view',
+            args => {
+                '_type'   => 'comment',
+                'id'      => $target_obj->id,
+                'blog_id' => $target_obj->blog_id
+            },
+        );
+
+        return substr( $target_obj->text, 0, 20 )
+        # Add the "Edit" link
+            . ' <a target="_blank" href="' . $edit_url . '"><img src="'
+            . $app->static_path . 'images/status_icons/draft.gif" '
+            . 'width="9" height="9" alt="Edit" title="Edit" /></a>';
+    }
+    else {
+        return $target_obj->has_column('text')
+            ? substr( $target_obj->text, 0, 20 )
+            : $app->model($obj_type)->class_label;
+    }
 }
 
 # This will completely rebuild an object's votesummary record, which *could* be
