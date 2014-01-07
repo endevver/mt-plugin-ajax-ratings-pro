@@ -25,9 +25,10 @@ sub init {
 
 # A vote has been submitted!
 sub vote {
-    my $app    = shift;
-    my $q      = $app->can('query') ? $app->query : $app->param;
-    my $format = $q->param('format') || 'text';
+    my $app     = shift;
+    my $q       = $app->can('query') ? $app->query : $app->param;
+    my $format  = $q->param('format') || 'text';
+    my $blog_id = $q->param('blog_id');
 
     return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
@@ -35,7 +36,7 @@ sub vote {
     # Check that the submitted vote has been set up for this object type on
     # this blog.
     my $plugin = MT->component('ajaxrating');
-    my $config = $plugin->get_config_hash('blog:'.$q->param('blog_id'));
+    my $config = $plugin->get_config_hash('blog:'.$blog_id);
     my $obj_type = $q->param('obj_type');
     return $app->_send_error( $format, "Invalid object type.")
         if ($config->{ratingl} && ($obj_type ne 'entry') && ($obj_type ne 'blog'));
@@ -90,7 +91,7 @@ sub vote {
         # and the score they gave.
         $vote = AjaxRating::Vote->new;
         $vote->ip($app->remote_ip);
-        $vote->blog_id($q->param('blog_id'));
+        $vote->blog_id($blog_id);
         $vote->voter_id($voter->id) if $voter;
         $vote->obj_type($q->param('obj_type'));
         $vote->obj_id($q->param('obj_id'));
@@ -165,9 +166,9 @@ sub vote {
                     );
                 } elsif ($entry && $config->{rebuild} eq "2") {
                     $app->rebuild_entry( Entry => $entry);
-                    $app->rebuild_indexes( BlogID => $q->param('blog_id'));
+                    $app->rebuild_indexes( BlogID => $blog_id);
                 } elsif ($config->{rebuild} eq "3") {
-                    $app->rebuild_indexes( BlogID => $q->param('blog_id'));
+                    $app->rebuild_indexes( BlogID => $blog_id);
                 }
             });  ### end of background task
         }
