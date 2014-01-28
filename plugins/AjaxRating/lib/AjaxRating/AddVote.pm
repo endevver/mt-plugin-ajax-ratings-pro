@@ -25,10 +25,13 @@ sub init {
 
 # A vote has been submitted!
 sub vote {
-    my $app     = shift;
-    my $q       = $app->can('query') ? $app->query : $app->param;
-    my $format  = $q->param('format') || 'text';
-    my $blog_id = $q->param('blog_id');
+    my $app      = shift;
+    my $q        = $app->can('query') ? $app->query : $app->param;
+    my $format   = $q->param('format') || 'text';
+    my $blog_id  = $q->param('blog_id');
+    my $obj_type = $q->param('obj_type');
+    my $obj_id   = $q->param('obj_id');
+    my $rating   = $q->param('r');
 
     return $app->_send_error( $format, "Invalid request, must use POST.")
         if ($app->request_method() ne 'POST');
@@ -37,15 +40,15 @@ sub vote {
     # this blog.
     my $plugin = MT->component('ajaxrating');
     my $config = $plugin->get_config_hash('blog:'.$blog_id);
-    my $obj_type = $q->param('obj_type');
+
     return $app->_send_error( $format, "Invalid object type.")
         if ($config->{ratingl} && ($obj_type ne 'entry') && ($obj_type ne 'blog'));
 
     # Refuse any vote that has somehow exceeded the maximum number of scoring
     # points.
-    my $max_points_setting = $q->param('obj_type') . "_max_points";
+    my $max_points_setting = $obj_type . "_max_points";
     my $max_points = $config->{$max_points_setting} || 10;
-    if ($q->param('r') > $max_points) {
+    if ($rating > $max_points) {
         return $app->_send_error( $format, "That vote exceeds the maximum for this item.");
     }
 
@@ -58,8 +61,8 @@ sub vote {
         # IP checking is enabled
         $vote = AjaxRating::Vote->load({
             ip       => $app->remote_ip,
-            obj_type => $q->param('obj_type'),
-            obj_id   => $q->param('obj_id'),
+            obj_type => $obj_type,
+            obj_id   => $obj_id,
         });
     }
     if ($vote) {
@@ -80,22 +83,23 @@ sub vote {
         if ($voter) {
             # check if logged in user already voted via a different IP address
             $vote = AjaxRating::Vote->load({
-                voter_id       => $voter->id,
-                obj_type => $q->param('obj_type'),
-                obj_id   => $q->param('obj_id'),
+                voter_id => $voter->id,
+                obj_type => $obj_type,
+                obj_id   => $obj_id,
             });
             return $app->_send_error( $format, "You have already voted on this item.")
                 if $vote;
         }
+
         # This user has not previously voted on this object. Record their vote
         # and the score they gave.
         $vote = AjaxRating::Vote->new;
-        $vote->ip($app->remote_ip);
-        $vote->blog_id($blog_id);
-        $vote->voter_id($voter->id) if $voter;
-        $vote->obj_type($q->param('obj_type'));
-        $vote->obj_id($q->param('obj_id'));
-        $vote->score($q->param('r'));
+        $vote->ip(       $app->remote_ip );
+        $vote->blog_id(  $blog_id        );
+        $vote->voter_id( $voter->id      ) if $voter;
+        $vote->obj_type( $obj_type       );
+        $vote->obj_id(   $obj_id         );
+        $vote->score(    $rating         );
         $vote->save or die $vote->errstr;
 
         # Update the Vote Summary. The summary is used because it will let
@@ -110,12 +114,12 @@ sub vote {
         # it with "getting started" values.
         if (!$votesummary) {
             $votesummary = AjaxRating::VoteSummary->new;
-            $votesummary->obj_type($vote->obj_type);
-            $votesummary->obj_id($vote->obj_id);
-            $votesummary->blog_id($vote->blog_id);
-            $votesummary->author_id($q->param('a'));
-            $votesummary->vote_count(0);
-            $votesummary->total_score(0);
+            $votesummary->obj_type(    $vote->obj_type );
+            $votesummary->obj_id(      $vote->obj_id   );
+            $votesummary->blog_id(     $vote->blog_id  );
+            $votesummary->author_id(   $voter->id      ) if $voter;
+            $votesummary->vote_count(  0               );
+            $votesummary->total_score( 0               );
         }
 
         # Update the VoteSummary with details of this vote.
@@ -134,6 +138,13 @@ sub vote {
         $yaml->[0]->{$vote->score} += 1;
 
         $votesummary->vote_dist( $yaml->write_string() );
+
+        # Update the the summary's modified on timestamp.
+        my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+        my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+            1900 + $y, $mo + 1, $d, $h, $m, $s );
+        $votesummary->modified_on( $mod_time );
+
         $votesummary->save or die $votesummary->errstr;
 
         # Now that the vote has been recorded, rebuild the required pages.
@@ -239,7 +250,14 @@ sub unvote {
                 $votesummary->avg_score(
                     sprintf("%.1f",$votesummary->total_score / $votesummary->vote_count)
                 );
-                $votesummary->save;
+
+                # Update the the summary's modified on timestamp.
+                my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+                my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+                    1900 + $y, $mo + 1, $d, $h, $m, $s );
+                $votesummary->modified_on( $mod_time );
+
+                $votesummary->save or die $votesummary->errstr;
             }
         }
         if ($config->{rebuild}) {

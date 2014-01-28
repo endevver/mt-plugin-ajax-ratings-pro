@@ -230,6 +230,12 @@ sub _rebuild_votesummary_record {
         $votesummary->avg_score( 0 );
     }
 
+    # Update the the summary's modified on timestamp.
+    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+        1900 + $y, $mo + 1, $d, $h, $m, $s );
+    $votesummary->modified_on( $mod_time );
+
     $votesummary->save or die $votesummary->errstr;
 
     return $votesummary;

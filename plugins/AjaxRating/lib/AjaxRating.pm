@@ -239,6 +239,13 @@ sub _create_vote_distribution_data {
 
     # Convert the hash to a string and save the vote summary.
     $votesummary->vote_dist( $yaml->write_string() );
+
+    # Update the the summary's modified on timestamp.
+    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+        1900 + $y, $mo + 1, $d, $h, $m, $s );
+    $votesummary->modified_on( $mod_time );
+
     $votesummary->save or die $votesummary->errstr;
 
     # Return the $yaml hash so that the vote distribution tag can continue
@@ -833,15 +840,23 @@ sub tag_delete_handler {
 sub entry_post_save {
     my ($cb, $entry) = @_;
     my $votesummary;
+
+    # Update the the summary's modified on timestamp.
+    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+        1900 + $y, $mo + 1, $d, $h, $m, $s );
+
     if ($entry->status != 2) {
         if ($votesummary = AjaxRating::VoteSummary->load({ obj_type => 'entry', obj_id => $entry->id })) {
             $votesummary->obj_type('entry0');
-            $votesummary->save;
+            $votesummary->modified_on( $mod_time );
+            $votesummary->save or die $votesummary->errstr;
         }
     } else {
         if ($votesummary = AjaxRating::VoteSummary->load({ obj_type => 'entry0', obj_id => $entry->id })) {
             $votesummary->obj_type('entry');
-            $votesummary->save;
+            $votesummary->modified_on( $mod_time );
+            $votesummary->save or die $votesummary->errstr;
         }
     }
 }
@@ -849,15 +864,23 @@ sub entry_post_save {
 sub comment_post_save {
     my ($cb, $comment) = @_;
     my $votesummary;
+
+    # Update the the summary's modified on timestamp.
+    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+        1900 + $y, $mo + 1, $d, $h, $m, $s );
+
     if ($comment->visible == 0) {
         if ($votesummary = AjaxRating::VoteSummary->load({ obj_type => 'comment', obj_id => $comment->id })) {
             $votesummary->obj_type('comment0');
-            $votesummary->save;
+            $votesummary->modified_on( $mod_time );
+            $votesummary->save or die $votesummary->errstr;
         }
     } else {
         if ($votesummary = AjaxRating::VoteSummary->load({ obj_type => 'comment0', obj_id => $comment->id })) {
             $votesummary->obj_type('comment');
-            $votesummary->save;
+            $votesummary->modified_on( $mod_time );
+            $votesummary->save or die $votesummary->errstr;
         }
     }
 }
@@ -865,15 +888,23 @@ sub comment_post_save {
 sub tbping_post_save {
     my ($cb, $ping) = @_;
     my $votesummary;
+
+    # Update the the summary's modified on timestamp.
+    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+        1900 + $y, $mo + 1, $d, $h, $m, $s );
+
     if ($ping->visible == 0) {
         if ($votesummary = AjaxRating::VoteSummary->load({ obj_type => 'trackback', obj_id => $ping->id })) {
             $votesummary->obj_type('trackback0');
-            $votesummary->save;
+            $votesummary->modified_on( $mod_time );
+            $votesummary->save or die $votesummary->errstr;
         }
     } else {
         if ($votesummary = AjaxRating::VoteSummary->load({ obj_type => 'trackback0', obj_id => $ping->id })) {
             $votesummary->obj_type('trackback');
-            $votesummary->save;
+            $votesummary->modified_on( $mod_time );
+            $votesummary->save or die $votesummary->errstr;
         }
     }
 }
