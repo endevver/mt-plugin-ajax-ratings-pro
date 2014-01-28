@@ -5,6 +5,8 @@ http://mt-hacks.com/ajaxrating.html
 Refer to the above URL for documentation on this plugin. The following
 documents additions made since version 1.261.
 
+Compatible with Movable Type 4.x, 5.1+, and 6.x.
+
 # Upgrading
 
 Version 1.3+ is converted to a `config.yaml` style plugin. Be sure to remove
@@ -107,3 +109,38 @@ Generates a JSON response such as:
         "total_score":"5",
         "message":"Vote summary retreived."
     }
+
+Many objects can be retrieved by specifying a comma-separated value for the
+`obj_id` argument. (Note that the specified object IDs must all be of the same
+object type.) Example:
+
+http://myblog.com/mt/plugins/AjaxRating/mt-getvotes.cgi?blog_id=7&obj_type=entry&obj_id=123,124,125&format=json
+
+Generates a JSON response such as:
+
+    [
+        {
+            "obj_type":"entry",
+            "obj_id":"123",
+            "status":"OK",
+            "vote_count":"1",
+            "total_score":"5",
+            "message":"Vote summary retreived."
+        },
+        {
+            "obj_type":"entry",
+            "obj_id":"124",
+            "status":"OK",
+            "vote_count":"9",
+            "total_score":"25",
+            "message":"Vote summary retreived."
+        },
+        {
+            "obj_type":"entry",
+            "obj_id":"125",
+            "status":"OK",
+            "vote_count":"3",
+            "total_score":"4",
+            "message":"Vote summary retreived."
+        }
+    ]
