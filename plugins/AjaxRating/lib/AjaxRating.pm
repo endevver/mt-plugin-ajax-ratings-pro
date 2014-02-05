@@ -186,9 +186,12 @@ sub listing_vote_distribution {
     # 10 is used as a fallback elsewhere for the max points, so it's a safe
     # guess that it's good to use.
     my $plugin = MT->component('ajaxrating');
+    # Change attempting to fix warning:
+    #    Use of uninitialized value in concatenation (.) or string at
+    #    plugins/AjaxRating/lib/AjaxRating.pm line 189.
     my $max_points = $plugin->get_config_value(
-        $votesummary->obj_type.'_max_points',
-        'blog:'.$votesummary->blog_id
+        ( $votesummary->obj_type // $obj_type ) . '_max_points',
+        'blog:' . ( $votesummary->blog_id // $obj->blog_id )
     ) || '10';
 
     # Make sure that all possible scores have been marked--at least with a 0.
