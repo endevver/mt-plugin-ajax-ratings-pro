@@ -6,7 +6,7 @@ doc_link:    http://mt-hacks.com/ajaxrating.html
 plugin_link: http://mt-hacks.com/ajaxrating.html
 author_name: 'Mark Carey'
 author_link: http://mt-hacks.com/
-version:     1.4.11
+version:     1.4.12
 schema_version: 4
 
 object_types:
@@ -148,6 +148,7 @@ tags:
        AjaxRatingAvgScore:             AjaxRating::ajax_rating_avg_score
        AjaxRatingTotalScore:           AjaxRating::ajax_rating_total_score
        AjaxRatingVoteCount:            AjaxRating::ajax_rating_vote_count
+       AjaxRatingTotalVotesInBlog:     AjaxRating::ajax_rating_total_votes_in_blog
        AjaxRater:                      AjaxRating::rater
        AjaxStarRater:                  AjaxRating::star_rater
        AjaxThumbRater:                 AjaxRating::thumb_rater

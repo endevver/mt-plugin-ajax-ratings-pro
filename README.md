@@ -62,6 +62,11 @@ following example:
 As you'll notice, the loop meta variables are also supported, including
 `__first__`, `__last__`, `__odd__`, `__even__`, and `__counter__`.
 
+## AjaxRatingTotalVotesInBlog
+
+The tag `AjaxRatingTotalVotesInBlog` is a function tag that will return the total number of ratings on Entries in the current blog.
+
+
 # (Optional)  JSON Output For Voting Script
 
 (Advanced Feature) Staring in version 1.4.1, the voting script (`mt-vote.cgi`)

@@ -309,6 +309,20 @@ sub ajax_rating_total_score {
     ajax_rating($ctx, $args);
 }
 
+# Return the number of votes on Entries in the current blog.
+sub ajax_rating_total_votes_in_blog {
+    my $ctx  = shift;
+    my $args = shift;
+    my $app  = MT->instance;
+
+    my $count = $app->model('ajaxrating_vote')->count({
+        blog_id  => $ctx->stash('blog_id'),
+        obj_type => 'entry',
+    });
+
+    return $count or '0';
+}
+
 sub ajax_rating_user_vote_count {
     my $ctx = shift;
     my $args = shift;
