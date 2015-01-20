@@ -10,7 +10,7 @@ __PACKAGE__->install_properties({
         'id'          => 'integer not null auto_increment',
         'blog_id'     => 'integer default 0',
         'obj_type'    => 'string(50) not null',
-        'obj_id'      => 'integer default 0',
+        'obj_id'      => 'string(255) default 0',
         'author_id'   => 'integer default 0',
         'vote_count'  => 'integer default 0',
         'total_score' => 'integer default 0',

@@ -11,7 +11,7 @@ __PACKAGE__->install_properties({
         'blog_id'  => 'integer default 0',
         'voter_id' => 'integer default 0',
         'obj_type' => 'string(50) not null',
-        'obj_id'   => 'integer default 0',
+        'obj_id'   => 'string(255) default 0',
         'score'    => 'integer default 0',
         'ip'       => 'string(15)'
     },

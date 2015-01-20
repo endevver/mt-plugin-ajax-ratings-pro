@@ -6,8 +6,8 @@ doc_link:    http://mt-hacks.com/ajaxrating.html
 plugin_link: http://mt-hacks.com/ajaxrating.html
 author_name: 'Mark Carey'
 author_link: http://mt-hacks.com/
-version:     1.4.12
-schema_version: 4
+version:     1.4.13
+schema_version: 5
 
 object_types:
     # ar_vote:      AjaxRating::Vote

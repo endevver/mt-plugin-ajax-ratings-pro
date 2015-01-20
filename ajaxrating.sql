@@ -11,7 +11,7 @@ CREATE TABLE `mt_ajaxrating_votesummary` (
   `ajaxrating_votesummary_author_id` int(11) default NULL,
   `ajaxrating_votesummary_avg_score` float default NULL,
   `ajaxrating_votesummary_blog_id` int(11) default NULL,
-  `ajaxrating_votesummary_obj_id` int(11) default NULL,
+  `ajaxrating_votesummary_obj_id` varchar(255) default NULL,
   `ajaxrating_votesummary_obj_type` varchar(50) NOT NULL default '',
   `ajaxrating_votesummary_total_score` int(11) default NULL,
   `ajaxrating_votesummary_vote_count` int(11) default NULL,
@@ -27,7 +27,7 @@ CREATE TABLE `mt_ajaxrating_votesummary` (
   KEY `mt_ajaxrating_votesummary_avg_score` (`ajaxrating_votesummary_avg_score`),
   KEY `mt_ajaxrating_votesummary_blog_id` (`ajaxrating_votesummary_blog_id`),
   KEY `mt_ajaxrating_votesummary_obj_type` (`ajaxrating_votesummary_obj_type`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
 
 #
@@ -40,7 +40,7 @@ CREATE TABLE `mt_ajaxrating_vote` (
   `ajaxrating_vote_id` int(11) NOT NULL auto_increment,
   `ajaxrating_vote_blog_id` int(11) default NULL,
   `ajaxrating_vote_ip` varchar(15) default NULL,
-  `ajaxrating_vote_obj_id` int(11) default NULL,
+  `ajaxrating_vote_obj_id` varchar(255) default NULL,
   `ajaxrating_vote_obj_type` varchar(50) NOT NULL default '',
   `ajaxrating_vote_score` int(11) default NULL,
   `ajaxrating_vote_created_on` datetime default NULL,
@@ -52,7 +52,7 @@ CREATE TABLE `mt_ajaxrating_vote` (
   KEY `mt_ajaxrating_vote_ip` (`ajaxrating_vote_ip`),
   KEY `mt_ajaxrating_vote_blog_id` (`ajaxrating_vote_blog_id`),
   KEY `mt_ajaxrating_vote_obj_type` (`ajaxrating_vote_obj_type`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
 
 #
@@ -67,7 +67,7 @@ CREATE TABLE `mt_ajaxrating_hotobject` (
   `ajaxrating_hotobject_author_id` int(11) default NULL,
   `ajaxrating_hotobject_avg_score` float default NULL,
   `ajaxrating_hotobject_blog_id` int(11) default NULL,
-  `ajaxrating_hotobject_obj_id` int(11) default NULL,
+  `ajaxrating_hotobject_obj_id` varchar(255) default NULL,
   `ajaxrating_hotobject_obj_type` varchar(50) NOT NULL default '',
   `ajaxrating_hotobject_total_score` int(11) default NULL,
   `ajaxrating_hotobject_vote_count` int(11) default NULL,
@@ -83,5 +83,5 @@ CREATE TABLE `mt_ajaxrating_hotobject` (
   KEY `mt_ajaxrating_hotobject_avg_score` (`ajaxrating_hotobject_avg_score`),
   KEY `mt_ajaxrating_hotobject_blog_id` (`ajaxrating_hotobject_blog_id`),
   KEY `mt_ajaxrating_hotobject_obj_type` (`ajaxrating_hotobject_obj_type`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
