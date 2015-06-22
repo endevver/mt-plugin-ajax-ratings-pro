@@ -314,7 +314,7 @@ sub system_filters {
     my $app = MT->instance;
     my $obj_types = $app->registry('object_types');
 
-    while (my $obj_type = each $obj_types) {
+    while (my $obj_type = each %$obj_types) {
         if (
             $app->model( $obj_type )
             && $app->model('ajaxrating_vote')->exist({
