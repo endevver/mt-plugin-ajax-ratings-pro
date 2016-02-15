@@ -43,6 +43,31 @@ sub vote_delete {
     $app->call_return;
 }
 
+# From the Vote Activity Log (listing framework), recalulate summaries. This is
+# a particularly important option when a summary hasn't been created for a vote
+# for some reason.
+sub vote_recalculate_votesummary {
+    my ($app) = @_;
+    my $q     = $app->can('query') ? $app->query : $app->param;
+    my @ids   = $q->param('id');
+
+    foreach my $id (@ids) {
+        # Use the Vote to rebuild a Vote Summary.
+        my $vote = $app->model('ajaxrating_vote')->load($id)
+            or next;
+
+        # Recalculate the Vote Summary record.
+        my $votesummary = _rebuild_votesummary_record({
+            blog_id  => $vote->blog_id,
+            obj_type => $vote->obj_type,
+            obj_id   => $vote->obj_id,
+        });
+    }
+
+    $app->add_return_arg( recalculated => 1 );
+    $app->call_return;
+}
+
 # From the Vote Summary Activity Log (listing framework), recalculate summaries.
 sub votesummary_recalculate {
     my ($app) = @_;

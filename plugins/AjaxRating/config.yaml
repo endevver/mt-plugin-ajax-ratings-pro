@@ -6,7 +6,7 @@ doc_link:    http://mt-hacks.com/ajaxrating.html
 plugin_link: http://mt-hacks.com/ajaxrating.html
 author_name: 'Mark Carey'
 author_link: http://mt-hacks.com/
-version:     1.4.14
+version:     1.4.15
 schema_version: 5
 
 object_types:
@@ -212,6 +212,12 @@ list_actions:
             order: 100
             code: $AjaxRating::AjaxRating::CMS::vote_delete
             continue_prompt: 'Are you sure you want to delete the selected Vote record(s)?'
+            button: 1
+        recalculate:
+            label: 'Recalculate'
+            order: 100
+            code: $AjaxRating::AjaxRating::CMS::vote_recalculate_votesummary
+            continue_prompt: "Recalculate the summary data for the selected object(s)? \nNote that objects with a lot of Vote records can be slow to process."
             button: 1
     ajaxrating_votesummary:
         recalculate:
