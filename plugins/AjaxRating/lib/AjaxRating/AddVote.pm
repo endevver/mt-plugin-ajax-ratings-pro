@@ -131,7 +131,9 @@ sub vote {
 
         # Update the voting distribution, which makes it easy to output
         # "X Stars has received Y votes"
-        my $yaml = YAML::Tiny->read_string( $votesummary->vote_dist );
+        # Supply an empty string if there's no existing vote distribution --
+        # which is true if this is a new vote summary object.
+        my $yaml = YAML::Tiny->read_string( $votesummary->vote_dist || '' );
         $yaml = YAML::Tiny->new if !$yaml; # No previously-saved data.
 
         # Increase the vote tally for this score by 1.
