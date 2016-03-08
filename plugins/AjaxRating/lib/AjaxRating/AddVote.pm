@@ -208,6 +208,8 @@ sub vote {
 }
 
 # remove rating/vote
+# TODO Remove most of this logic and use AjaxRating::remove_vote
+# See AjaxRating::DataAPI for example
 sub unvote {
     my $app    = shift;
     my $q      = $app->can('query') ? $app->query : $app->param;

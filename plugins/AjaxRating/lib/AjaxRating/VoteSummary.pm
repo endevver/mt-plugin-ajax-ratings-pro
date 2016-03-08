@@ -2,6 +2,7 @@ package AjaxRating::VoteSummary;
 use strict;
 use warnings;
 use YAML::Tiny;
+use Carp qw( croak );
 
 use MT::Object;
 @AjaxRating::VoteSummary::ISA = qw(MT::Object);
@@ -122,7 +123,7 @@ sub list_properties {
             col     => 'vote_count',
             html    => sub {
                 my ( $prop, $obj, $app, $opts ) = @_;
-                
+
                 my $url = $app->uri(
                     mode =>'list',
                     args => {
@@ -176,7 +177,7 @@ sub list_properties {
                 #     Score: 5; Votes: 9
                 my $out = '';
                 foreach my $score ( sort {$a <=> $b} keys %{$yaml->[0]} ) {
-                    $out .= 'Score: ' . $score 
+                    $out .= 'Score: ' . $score
                         . '; Votes: ' . $yaml->[0]->{$score}
                         . '<br />';
                 }
@@ -194,6 +195,70 @@ sub list_properties {
             display => 'default',
         },
     };
+}
+
+sub add_vote {
+    my ( $obj, $vote ) = @_;
+
+    if ( $obj->id ) {
+        $obj->modified_by( $vote->voter_id ) if $vote->voter_id;
+    }
+    else {
+        $obj->blog_id( $vote->blog_id ) if $vote->blog_id;
+        if ( $vote->voter_id ) {
+            $obj->author_id( $vote->voter_id );
+            $obj->created_by( $vote->voter_id );
+        }
+    }
+    $obj->adjust_for_vote({ score => $vote->score, add => 1 });
+}
+
+sub remove_vote {
+    my ( $obj, $vote ) = @_;
+    $obj->adjust_for_vote({ score => $vote->score, remove => 1 });
+}
+
+sub adjust_for_vote {
+    my ( $obj, $args ) = @_;
+
+    croak( "Bad argument: $args" ) unless 'HASH' eq ref $args;
+
+    my $count = ( $obj->vote_count  || 0 ) + ( $args->{remove}  ? -1 : 1 );
+    if ( $count < 1 ) {
+        $obj->vote_count(0);
+        $obj->total_score(0);
+        $obj->avg_score(0);
+        $obj->vote_dist('');
+        $obj->remove;
+        return;
+    }
+
+    my $score = ( $obj->total_score || 0 )
+              + ( $args->{score} * ( $args->{remove} ? -1 : 1 ));
+    $score = 0 if $score < 0;
+
+    # Update the VoteSummary with details of this vote.
+    $obj->vote_count( $count );
+    $obj->total_score( $score );
+    $obj->avg_score( sprintf("%.1f", $obj->total_score / $obj->vote_count) );
+
+    # Update the voting distribution, which makes it easy to output
+    # "X Stars has received Y votes"
+    # Supply an empty string if there's no existing vote distribution --
+    # which is true if this is a new vote summary object.
+    my $yaml = YAML::Tiny->read_string( $obj->vote_dist || '' )
+            || YAML::Tiny->new;     # No previously-saved data.
+    # Increase the vote tally for this score by 1, output and save the string
+    $yaml->[0]->{$args->{score}} += ( $args->{remove} ? -1 : 1 );
+    $obj->vote_dist( $yaml->write_string() );
+
+    # Update the the summary's modified on timestamp.
+    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
+    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
+        1900 + $y, $mo + 1, $d, $h, $m, $s );
+    $obj->modified_on( $mod_time );
+
+    $obj->save or die $obj->errstr;
 }
 
 1;

@@ -12,6 +12,112 @@ use AjaxRating::VoteSummary;
 
 use YAML::Tiny;
 
+sub get_votesummary {
+    my ( $pkg, $args ) = @_;
+    my @result;
+
+    my $missing = join( ', ',
+        (grep { ! defined( $args->{$_} ) } qw( obj_type obj_ids ))
+    );  # Not inlcuding blog_id; it's unnecessary for loading votesummary record
+    return +{ error => "Required parameters $missing not found." } if $missing;
+
+    my $VoteSummary = MT->instance->model('ajaxrating_votesummary');
+    my $terms       = {
+        map  { $_ => $args->{$_} }
+        grep { defined $args->{$_} } qw(blog_id obj_type)
+    };
+
+    # $obj_ids can be a comma-separated list of object IDs.
+    foreach my $obj_id ( split( /\s?,\s?/, $args->{obj_ids} ) ) {
+        $terms->{obj_id} = $obj_id;
+        push( @result, $VoteSummary->get_by_key($terms) );
+    }
+
+    return { items => \@result };
+}
+
+sub remove_vote {
+    my ( $pkg, $args ) = @_;
+    my $app            = MT->instance;
+
+    my @required = qw( obj_type obj_id voter_id );
+    my $terms    = { map { $_ => $args->{$_} // undef } @required };
+
+    ### REQUIRED VALUES CHECK
+    if ( my @missing = grep { ! defined( $args->{$_} ) } @required ) {
+        my $msg = 'Required fields missing for vote removal: '
+                . join( ', ', @missing );
+        return +{ %$terms, error => $msg };
+    }
+
+    my $vote = $app->model('ajaxrating_vote')->load( $terms )
+        or return +{ %$terms, error => "Vote not found" };
+
+    $vote->remove;
+
+    my $votesummary = $app->model('ajaxrating_votesummary')->get_by_key({
+        obj_type => $vote->obj_type,
+        obj_id   => $vote->obj_id,
+    });
+
+    $votesummary->remove_vote( $vote ) if $votesummary->id;
+
+    # Now that the vote has been recorded, rebuild the required pages.
+    $pkg->rebuild_vote_object( $vote );
+
+    return +{ vote => $vote, votesummary => $votesummary };
+}
+
+sub rebuild_vote_object {
+    my ( $pkg, $vote, $rebuild ) = @_;
+    my $app = MT->instance;
+
+    unless ( $rebuild ) {
+        my $plugin = MT->instance->component('ajaxrating');
+        my $config = $plugin->get_config_hash('blog:'.$vote->blog_id);
+        $rebuild = $config->{rebuild} or return;
+    }
+
+    MT::Util::start_background_task(sub {
+        my $entry;
+        if ( grep { $vote->obj_type eq $_ } qw( entry page topic ) ) {
+            $entry = MT->model('entry')->load( $vote->obj_id )
+                or warn sprintf '%s ID %s not found for rebuilding',
+                        $vote->obj_type, $vote->obj_id;
+        }
+        elsif ( $vote->obj_type eq 'comment' ) {
+            my $comment = $app->model('comment')->load( $vote->obj_id );
+            $entry      = $comment->entry;
+        }
+        elsif ( $vote->obj_type eq 'ping' ) {
+            my $ping = $app->model('tbping')->load( $vote->obj_id );
+            $entry   = $ping->entry;
+        }
+
+        if ( $entry && $rebuild == 1 ) {
+            $app->publisher->_rebuild_entry_archive_type(
+                Entry => $entry, ArchiveType => 'Individual',
+            );
+        }
+        elsif ( $vote->obj_type eq "category" and $rebuild == 1 ) {
+            my $category = $app->mode('category')->load( $vote->obj_id );
+            $app->publisher->_rebuild_entry_archive_type(
+                Category => $category, ArchiveType => 'Category',
+            );
+        }
+        elsif ( $entry && $rebuild == 2 ) {
+            $app->rebuild_entry(   Entry  => $entry   );
+            $app->rebuild_indexes( BlogID => $vote->blog_id );
+        }
+        elsif ( $rebuild == 3 ) {
+            $app->rebuild_indexes( BlogID => $vote->blog_id );
+        }
+        else {
+            warn "Nothing found to rebuild after rating";
+        }
+    });  ### end of background task
+}
+
 sub listing {
     my $ctx = shift;
     my $args = shift;

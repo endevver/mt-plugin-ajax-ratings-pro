@@ -17,6 +17,8 @@ sub init {
 }
 
 # Grab the vote summary record for an object ID/type.
+# TODO Remove most of this logic and use AjaxRating::get_votesummary
+# See AjaxRating::DataAPI for example
 sub get_votes {
     my $app    = shift;
     my $q      = $app->can('query') ? $app->query : $app->param;

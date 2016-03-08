@@ -37,7 +37,7 @@ votes by IP address. Disable during development for easy testing.
 ## AjaxRatingUserVotes
 
 The tag `AjaxRatingUserVotes` is a block tag that outputs a list of
-the recent objects voted on by a specific user. Starting in 1.4.1, the sort 
+the recent objects voted on by a specific user. Starting in 1.4.1, the sort
 order is most-recent vote first -- note that the sorting it based on when the
 vote was made, NOT the date of the object.  This tag is well suited to an
 Author archive or user profile page.
@@ -80,7 +80,7 @@ success:
     {
         "obj_id": "64246",    # object id of object
         "status": "OK",       # OK indicates a successful save
-        "vote_count": 29,     # number of votes for this object 
+        "vote_count": 29,     # number of votes for this object
         "score": "5",         # score for this vote
         "total_score": 126,   # sum of scores for all votes.
         "obj_type": "entry",  # type of object, usually 'entry'
@@ -149,3 +149,60 @@ Generates a JSON response such as:
             "message":"Vote summary retreived."
         }
     ]
+
+# Data API Interface
+
+Starting with version 1.5.0, Ajax Rating extends the Data API interface of Movable Type 6.
+
+## Entry endpoints
+
+The entry endpoints are exactly like the MT Data API entry endpoints but with `/ajaxrating` appended.
+
+**`GET /sites/:site_id/entries/:entry_id/ajaxrating`**
+
+Use this to retrieve the vote summary for an entry.  Also, if all entries are in the same blog, you can specify multiple entry_ids separated by commas.
+
+**`POST /sites/:site_id/entries/:entry_id/ajaxrating`**
+
+Use this to vote on an entry. Specify the `score` parameter in the request body (e.g. `score=3`).
+
+**`DELETE /sites/:site_id/entries/:entry_id/ajaxrating`**
+
+Use this to remove your vote on an entry.  You can specify multiple, comma-separated entry IDs if in the same blog.
+
+## Comment endpoints
+
+Similarly, the comment endpoints are exactly like the MT Data API comment endpoints but with `/ajaxrating` appended.
+
+**`GET /sites/:site_id/entries/:entry_id/comments/:comment_id/ajaxrating`**
+
+Use this to retrieve the vote summary for a comment.  Also, if all comments are on the same entry, you can specify multiple comment_ids separated by commas.
+
+**`POST /sites/:site_id/entries/:entry_id/comments/:comment_id/ajaxrating`**
+
+Use this to vote on a comment. Specify the `score` parameter and value in the request body.
+
+**`DELETE /sites/:site_id/entries/:entry_id/comments/:comment_id/ajaxrating`**
+
+Use this to remove your vote on a comment.  You can specify multiple, comma-separated comment IDs if on the same entry.
+
+## Generic object type endpoints
+
+The following are used to rate other blog objects (i.e. objects which are children of the blog object). The descriptions are similar to those for the entry endpoints:
+
+    GET    /sites/:site_id/:obj_type/:obj_ids/ajaxrating
+    POST   /sites/:site_id/:obj_type/:obj_id/ajaxrating
+    DELETE /sites/:site_id/:obj_type/:obj_id/ajaxrating
+
+The following are used to rate other objects which are not children of the blog object. The descriptions are similar to those for the entry endpoints:
+
+    GET    /ajaxrating/:obj_type/:obj_id
+    POST   /ajaxrating/:obj_type/:obj_id
+    DELETE /ajaxrating/:obj_type/:obj_id
+
+## Vote endpoints
+
+If you have the `vote_id` for a particular vote, you can use the following to get information about a vote or remove it.
+
+    GET    /ajaxrating/votes/:vote_id
+    DELETE /ajaxrating/votes/:vote_id
