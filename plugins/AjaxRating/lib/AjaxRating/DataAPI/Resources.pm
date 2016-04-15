@@ -35,17 +35,22 @@ package AjaxRating::DataAPI::Resources {
                             = MT->instance->model('ajaxrating_votesummary')->load({
                                 obj_type => 'entry',
                                 obj_id   => $entry->id,
-                            }) or return $hashes->[$i]->{"ratings"} = {
+                            });
+
+                        if ($vote_summ) {
+                            $hashes->[$i]->{"ratings"} = {
+                                avg_score   => $vote_summ->avg_score,
+                                total_score => $vote_summ->total_score,
+                                vote_count  => $vote_summ->vote_count,
+                            };
+                        }
+                        else {
+                            $hashes->[$i]->{"ratings"} = {
                                 avg_score   => 0,
                                 total_score => 0,
                                 vote_count  => 0,
                             };
-
-                        $hashes->[$i]->{"ratings"} = {
-                            avg_score   => $vote_summ->avg_score,
-                            total_score => $vote_summ->total_score,
-                            vote_count  => $vote_summ->vote_count,
-                        };
+                        }
                     }
                 },
             }
