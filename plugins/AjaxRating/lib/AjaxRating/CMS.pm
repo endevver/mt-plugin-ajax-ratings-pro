@@ -7,7 +7,7 @@ use warnings;
 sub vote_delete {
     my ($app) = @_;
     my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     # The log record is saved to the system Activity Log. We want to log the
     # deleted vote because it's something significant and could skew results,
@@ -15,19 +15,15 @@ sub vote_delete {
     require Data::Dumper;
 
     foreach my $id (@ids) {
-        my $record = $app->model('ajaxrating_vote')->load($id)
+        my $vote = $app->model('ajaxrating_vote')->load($id)
             or next;
-        $record->remove or die $record->errstr;
+        $vote->remove or die $vote->errstr;
 
         # Recalculate the Vote Summary record.
-        my $votesummary = _rebuild_votesummary_record({
-            blog_id  => $record->blog_id,
-            obj_type => $record->obj_type,
-            obj_id   => $record->obj_id,
-        });
+        my $vsumm = $vote->rebuild_votesummary_record();
 
         # Get a string of the dumped record to insert in the Activity Log.
-        my $dumped_record = Data::Dumper->Dump([$record->{column_values}]);
+        my $dumped_vote = Data::Dumper->Dump([$vote->{column_values}]);
 
         $app->log({
             level     => $app->model('log')->INFO(),
@@ -35,7 +31,7 @@ sub vote_delete {
             category  => 'vote',
             author_id => $app->user->id,
             message   => 'A Vote Log Record has been deleted.',
-            metadata  => $dumped_record,
+            metadata  => $dumped_vote,
         });
     }
 
@@ -48,8 +44,7 @@ sub vote_delete {
 # for some reason.
 sub vote_recalculate_votesummary {
     my ($app) = @_;
-    my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     foreach my $id (@ids) {
         # Use the Vote to rebuild a Vote Summary.
@@ -57,11 +52,7 @@ sub vote_recalculate_votesummary {
             or next;
 
         # Recalculate the Vote Summary record.
-        my $votesummary = _rebuild_votesummary_record({
-            blog_id  => $vote->blog_id,
-            obj_type => $vote->obj_type,
-            obj_id   => $vote->obj_id,
-        });
+        my $vsumm = $vote->rebuild_votesummary_record();
     }
 
     $app->add_return_arg( recalculated => 1 );
@@ -71,19 +62,14 @@ sub vote_recalculate_votesummary {
 # From the Vote Summary Activity Log (listing framework), recalculate summaries.
 sub votesummary_recalculate {
     my ($app) = @_;
-    my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     foreach my $id (@ids) {
-        my $summ = $app->model('ajaxrating_votesummary')->load($id)
+        my $vsumm = $app->model('ajaxrating_votesummary')->load($id)
             or next;
 
         # Recalculate the Vote Summary record.
-        my $votesummary = _rebuild_votesummary_record({
-            blog_id  => $summ->blog_id,
-            obj_type => $summ->obj_type,
-            obj_id   => $summ->obj_id,
-        });
+        my $new_vsumm = $vsumm->rebuild_votesummary_record();
     }
 
     $app->add_return_arg( recalculated => 1 );
@@ -94,8 +80,7 @@ sub votesummary_recalculate {
 # record and all related Vote records.
 sub votesummary_delete {
     my ($app) = @_;
-    my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     # The log record is saved to the system Activity Log. We want to log the
     # deleted vote because it's something significant and could skew results,
@@ -194,78 +179,6 @@ sub list_prop_object_content {
     }
 }
 
-# This will completely rebuild an object's votesummary record, which *could* be
-# expensive if a lot of vote records exist for the object.
-sub _rebuild_votesummary_record {
-    my ($arg_ref) = @_;
-    my $blog_id   = $arg_ref->{blog_id};
-    my $obj_type  = $arg_ref->{obj_type};
-    my $obj_id    = $arg_ref->{obj_id};
-    my $app = MT->instance;
-
-    # Try to load an existing VoteSummary record so that it can be updated.
-    my $votesummary = $app->model('ajaxrating_votesummary')->load({
-        obj_type => $obj_type,
-        obj_id   => $obj_id,
-    });
-
-    # If no VoteSummary was found for this object, create one and populate
-    # it with "getting started" values.
-    if (!$votesummary) {
-        $votesummary = MT->model('ajaxrating_votesummary')->new;
-        $votesummary->obj_type(  $obj_type      );
-        $votesummary->obj_id(    $obj_id        );
-        $votesummary->blog_id(   $blog_id       );
-        $votesummary->author_id( $app->user->id );
-        $votesummary->vote_count(0);
-        $votesummary->total_score(0);
-    }
-
-    my $iter = $app->model('ajaxrating_vote')->load_iter({
-        obj_type => $obj_type,
-        obj_id   => $obj_id,
-    });
-
-    my $vote_count  = 0;
-    my $total_score = 0;
-    my $yaml = YAML::Tiny->new; # For vote distribution data
-
-    while ( my $vote = $iter->() ) {
-        # Update the VoteSummary with details of this vote change.
-        $vote_count++;
-        $total_score += $vote->score;
-
-        # Update the voting distribution, which makes it easy to output
-        # "X Stars has received Y votes"
-        $yaml->[0]->{$vote->score} += 1;
-    }
-
-    $votesummary->vote_count(  $vote_count  );
-    $votesummary->total_score( $total_score );
-
-    # Convert the YAML hash to a string and save the vote summary.
-    $votesummary->vote_dist( $yaml->write_string() );
-
-    if ($votesummary->total_score && $votesummary->vote_count) {
-        $votesummary->avg_score(
-            sprintf("%.1f", $votesummary->total_score / $votesummary->vote_count)
-        );
-    }
-    else {
-        $votesummary->avg_score( 0 );
-    }
-
-    # Update the the summary's modified on timestamp.
-    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
-    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
-        1900 + $y, $mo + 1, $d, $h, $m, $s );
-    $votesummary->modified_on( $mod_time );
-
-    $votesummary->save or die $votesummary->errstr;
-
-    return $votesummary;
-}
-
 # Listing framework system filters for both the Vote and Vote Summary records.
 sub system_filters {
     my $system_filters = {
@@ -314,7 +227,7 @@ sub system_filters {
     # with Ajax Rating, however the following only ever returns one value...
     # my $type = 'ajaxrating_vote';
     # my $column = 'obj_type';
-    # 
+    #
     # my $class  = MT->instance->model($type);
     # my $driver = $class->dbi_driver;
     # my $dbd    = $driver->dbd;
@@ -325,7 +238,7 @@ sub system_filters {
     # $sql->from([ $table ]);
     # # $sql->distinct(1);
     # MT->log( "SQL: ".$sql->as_sql );
-    # 
+    #
     # my $dbh = $driver->r_handle or die 'Could not get driver handle';
     # my $sth = $dbh->prepare( $sql->as_sql ) or die 'Prepare failed';
     # $sth->execute(@{ $sql->{bind} }) or warn $dbh->errstr;

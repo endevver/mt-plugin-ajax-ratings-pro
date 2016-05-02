@@ -32,11 +32,11 @@ function smarty_function_MTAjaxRater($args, &$ctx) {
 	if ($args['id']) { $obj_id = $args['id']; }
 	$vote_args['obj_type'] = $obj_type;
 	$vote_args['obj_id'] = $obj_id;
-	list($votesummary) = $ctx->mt->db->load('ajaxrating_votesummary',$vote_args);
-	if ($votesummary) {
-		$avg_score = $votesummary['ajaxrating_votesummary_avg_score'];
-		$vote_count = $votesummary['ajaxrating_votesummary_vote_count'];
-		$total_score = $votesummary['ajaxrating_votesummary_total_score'];
+	list($vsumm) = $ctx->mt->db->load('ajaxrating_votesummary',$vote_args);
+	if ($vsumm) {
+		$avg_score = $vsumm['ajaxrating_votesummary_avg_score'];
+		$vote_count = $vsumm['ajaxrating_votesummary_vote_count'];
+		$total_score = $vsumm['ajaxrating_votesummary_total_score'];
 	}
 	if ($rater_type == 'star') {
 		$config = $ctx->mt->db->fetch_plugin_config('Ajax Rating Pro', 'blog:' . $blog_id);

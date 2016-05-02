@@ -4,149 +4,181 @@ package AjaxRating::DataAPI {
     use warnings;
     use MT::DataAPI::Endpoint::Common;
     use MT::DataAPI::Resource;
-    use Scalar::Util qw( looks_like_number );
-    use AjaxRating;
+    # use DDP;
+
+    sub setup_request {
+        my ( $app, $endpoint, @required ) = ( @_, qw( obj_type obj_id ));
+        my ( $terms, $args, $options );
+
+        my %param = $app->param_hash;
+
+        my $blog_id   = $app->param('site_id') || $app->param('blog_id');
+        if ( my $blog = MT->model('blog')->load( $blog_id ) ) {
+            $app->blog( $blog );
+            $terms->{blog_id} = $blog_id;
+        }
+
+        if ( $app->user && $app->user->id ) {
+            $param{voter_id} = $app->user->id;
+        }
+        else { delete $param{voter_id} }
+
+        unless ( $param{obj_id} ) {
+            my $id_field   = ($param{obj_type} || '').'_id';
+            my $obj_id     = delete $param{$id_field};
+            $param{obj_id} = $obj_id if $obj_id;
+        }
+
+        my @missing
+            = grep { ! defined( $terms->{$_} = $param{$_} ) } @required;
+
+        if ( @missing ) {
+            my $missing = join(', ', @missing );
+            # p %{{ $app->param_hash }};
+            return $app->error("Required parameters not found: $missing");
+        }
+
+        return ( $terms, $args, $options ) unless @missing;
+    }
 
     sub get_votesummary {
-        my ( $app, $endpoint ) = @_;
+        my ( $app, $endpoint )         = @_;
+        my ( $terms, $args, $options ) = setup_request( $app, $endpoint );
 
-        $app->param('obj_ids', $app->param('obj_id'))
-            unless $app->param('obj_ids');
+        return unless $terms;
 
-        unless ( $app->param('obj_ids') ) {
-            my $id_field = ($app->param('obj_type') || '').'_id';
-            $app->param('obj_ids', $app->param($id_field));
-        }
+        my $res = filtered_list( $app, $endpoint, 'ajaxrating_votesummary',
+                                 $terms, $args, $options );
+        return unless $res;
 
-        my $result = AjaxRating->get_votesummary({ $app->param_hash });
-        return $app->error( $result->{error} ) if $result->{error};
+        my $items
+            = MT::DataAPI::Resource::Type::ObjectList->new($res->{objects});
 
-        my @converted;
-        foreach my $obj ( @{ $result->{items} } ) {
-            push( @converted, obj_to_json_hash( $obj ) );
-        }
-        $result->{items} = \@converted;
+        return +{
+            totalResults => $res->{count} + 0,
+            itemCount    => scalar @{ $res->{objects} || [] },
+            items        => $items,
+        };
+    }
 
-        return $result->{totalResults} == 1 ? shift( @converted )
-                                            : $result;
+    sub get_votes {
+        my ( $app, $endpoint )         = @_;
+        my ( $terms, $args, $options ) = setup_request( $app, $endpoint );
+
+        return unless $terms;
+
+        my $res = filtered_list( $app, $endpoint, 'ajaxrating_vote',
+                                 $terms, $args, $options);
+        return unless $res;
+
+        my $items
+            = MT::DataAPI::Resource::Type::ObjectList->new($res->{objects});
+
+        return +{
+            totalResults => $res->{count} + 0,
+            itemCount    => scalar @{ $res->{objects} || [] },
+            items        => $items,
+        };
     }
 
     sub add_vote {
         my ( $app, $endpoint ) = @_;
+        my ( $terms, $args, $options )
+            = setup_request( $app, $endpoint, 'score' );
 
-        my $voter = $app->user;
-        $app->param( 'voter_id', $voter->id ) if $voter;
-
-        unless ( $app->param('obj_id') ) {
-            my $obj_type = $app->param('obj_type') || '';
-            $app->param( 'obj_id', $app->param($obj_type.'_id') );
-        }
-
-        $app->param( 'score', ($app->param('r') // $app->param('rating')) )
-            unless defined $app->param('score');
+        return unless $terms;
 
         my $vote = $app->model('ajaxrating_vote')->new();
-        $vote->set_values({
-            ( $voter ? (voter_id => $voter->id) : () ),
-            map  { $_ => $app->param($_)   }
-                grep { defined $app->param($_) }
-                    qw( blog_id obj_type obj_id score )
-        });
+        $vote->set_values($terms);
 
-        # my $new_vote = $app->resource_object( 'ajaxrating_vote', $vote ) or return;
-        # my $post_save = build_post_save_sub( $app, $blog, $new_vote, $vote );
+        save_object( $app, 'ajaxrating_vote', $vote ) or return;
 
-        save_object( $app, 'ajaxrating_vote', $vote )
-            or return;
-
-        # $post_save->();
-
-        ### TODO The following should be move to a Vote resource
-        my ( $votesummary ) = $app->model('ajaxrating_votesummary')->load({
-            map  { $_ => $vote->$_ }
-                grep { defined $vote->$_ } qw( blog_id obj_type obj_id )
-        });
-
-        my $vsummary  = obj_to_json_hash( $votesummary );
-        my $vote_hash = obj_to_json_hash( $vote );
-
-        return +{
-            score => $vote->score + 0 ,
-            ( map { $_ => $vote_hash->{$_} }
-                    qw( id blog_id ip obj_type obj_id score voter_id ) ),
-            votesummary => {
-                map { $_ => $vsummary->{$_} }
-                    qw( avg_score total_score vote_count vote_dist ),
-            },
-        };
+        $vote;
     }
 
     sub remove_vote {
         my ( $app, $endpoint ) = @_;
+        my ( $terms, $args, $options )
+            = setup_request( $app, $endpoint, 'voter_id' );
+        my $type = 'ajaxrating_vote';
+        my $Vote = MT->model( $type );
 
-        my $voter = $app->user;
-        $app->param( 'voter_id', $voter->id ) if $voter;
+        return unless $terms;
 
-        unless ( $app->param('obj_id') ) {
-            my $obj_type = $app->param('obj_type') || '';
-            $app->param( 'obj_id', $app->param($obj_type.'_id') );
+        # To ensure the post_remove callback is called, we load then remove
+        # via the object method. Otherwise, the driver's direct_remove method
+        # is called which doesn't trigger the post_remove callbacks
+        my $vote = $Vote->load( $terms, $args )
+            or return $app->error( 'Vote not found', 404 );
+
+        $app->param('voter_id', $terms->{voter_id} );
+        return unless run_permission_filter(
+            $app, 'data_api_delete_permission_filter', $Vote, $vote );
+
+        unless ( $vote->remove ) {
+            my $msg = 'Removing [_1] failed: [_2]';
+            my @args = ( $vote->obj_type.' '.$vote->obj_id, $vote->errstr);
+            return $app->error( $app->translate( $msg, @args ), 500 );
         }
 
-        $app->param('obj_ids', $app->param('obj_id'))
-            unless $app->param('obj_ids');
-
-        unless ( $app->param('obj_ids') ) {
-            my $id_field = ($app->param('obj_type') || '').'_id';
-            $app->param('obj_ids', $app->param($id_field));
-        }
-
-        my $result = AjaxRating->remove_vote({ $app->param_hash });
-        return $app->error( $result->{error} ) if $result->{error};
-
-        $result->{$_} = obj_to_json_hash( $result->{$_} )
-            foreach keys %$result;
-
-        return $result;
+        $app->run_callbacks( 'data_api_post_delete.' . $type, $app, $vote );
+        return $vote;
     }
 
     sub remove_vote_by_id {
         my ( $app, $endpoint ) = @_;
+        my $Vote  = $app->model('ajaxrating_vote');
+        my @ids   = split( /\s*,\s*/, $app->param('vote_id')||'' )
+            or return +{ error => 'No vote_id specified' };
 
-        my @results;
-        foreach my $vote_id ( split( /\s?,\s?/, $app->param('vote_id') ) ) {
-            if ( my $vote = $app->model('ajaxrating_vote')->load($vote_id) ) {
-                my $result = AjaxRating->remove_vote( $vote->get_values );
-                # p $result;
-                $result->{$_} = obj_to_json_hash( $result->{$_} )
-                    for keys %$result;
-                push( @results, $result );
+        my @votes = $app->model('ajaxrating_vote')->load(
+            @ids > 1 ? { id => \@ids } : $ids[0]
+        );
+
+        my %results;
+        my %ids   = map { $_ => 1 } @ids;
+        foreach my $vote ( @votes ) {
+            delete $ids{$vote->id};
+
+            if ( $vote->remove ) {
+                push( @{ $results{removed} }, $vote );
             }
-            else { warn "Vote ID $vote_id not found" }
+            else {
+                push( @{ $results{not_removed} },
+                    { error => $vote->errstr||'Unknown error',
+                      vote  => $vote }
+                );
+            }
         }
 
-        return +{ removed => \@results };
-    }
+        push( @{ $results{not_found} },
+            { error => "Vote ID $_ not found" } ) foreach keys %ids;
 
-    sub obj_to_json_hash {
-        my $obj   = shift or return {};
-        my $props = $obj->properties;
-        my $item  = $obj->get_values();
-        foreach my $k ( @{$obj->column_names} ) {
-            # Set default for column if undefined
-            my ( $def, $type ) = map { $props->{column_defs}{$k}{$_} }
-                                    qw( default type );
-            $item->{$k} //= $def if defined $def;
-
-            # Explicitly convert to proper data type for JSON outpit
-            $item->{$k} = $item->{$k} + 0
-                if (grep { $type eq $_ } qw( float integer ));
-
-            $item->{$k}
-                = MT::Util::ts2iso( $item->{blog_id}, $item->{$k} )
-                        if $type eq 'datetime';
-        }
-        return $item;
+        return \%results;
     }
 }
 
 1;
+
+__END__
+
+sub obj_to_json_hash {
+    my $obj   = shift or return {};
+    my $props = $obj->properties;
+    my $item  = $obj->get_values();
+    foreach my $k ( @{$obj->column_names} ) {
+        # Set default for column if undefined
+        my ( $def, $type ) = map { $props->{column_defs}{$k}{$_} }
+                                qw( default type );
+        $item->{$k} //= $def if defined $def;
+
+        # Explicitly convert to proper data type for JSON outpit
+        $item->{$k} = ($item->{$k}//0) + 0
+            if (grep { $type eq $_ } qw( float integer ));
+
+        $item->{$k}
+            = MT::Util::ts2iso( $item->{blog_id}, $item->{$k} )
+                    if $type eq 'datetime';
+    }
+    return $item;
+}

@@ -6,6 +6,6 @@
 
 use strict;
 use lib "lib", ($ENV{MT_HOME} ? "$ENV{MT_HOME}/lib" : "../../lib");
-use MT::Bootstrap App => 'AjaxRating::AddVote';
+use MT::Bootstrap App => 'AjaxRating::App::AddVote';
 
 __END__

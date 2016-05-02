@@ -1,13 +1,13 @@
 # EntryPost http://mt-hacks.com
 
-package AjaxRating::ReportComment;
+package AjaxRating::App::ReportComment;
 
 use strict;
 use warnings;
 use Sub::Install;
 
 use AjaxRating::App;
-@AjaxRating::ReportComment::ISA = qw( AjaxRating::App );
+@AjaxRating::App::ReportComment::ISA = qw( AjaxRating::App );
 
 sub init {
     my $app = shift;

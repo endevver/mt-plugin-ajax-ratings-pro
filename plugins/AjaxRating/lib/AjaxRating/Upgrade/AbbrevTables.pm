@@ -3,7 +3,7 @@ package AjaxRating::Upgrade::AbbrevTables;
 use strict;
 use warnings;
 use base qw( MT::ErrorHandler );
-use MT::Log::Log4perl qw( l4mtdump ); use Log::Log4perl qw( :resurrect ); my $logger ||= MT::Log::Log4perl->new();
+# use MT::Log::Log4perl qw( l4mtdump ); use Log::Log4perl qw( :resurrect ); my $logger ||= MT::Log::Log4perl->new();
 
 =head1 NAME
 
@@ -12,8 +12,8 @@ use MT::Log::Log4perl qw( l4mtdump ); use Log::Log4perl qw( :resurrect ); my $lo
 =head1 DESCRIPTION
 
 This package is comprised of the handler for the C<abbrev_tables> upgrade
-function. This upgrade restores Oracle compatibility lost at some point by 
-the use of table, column and index names which exceeded the 30-character 
+function. This upgrade restores Oracle compatibility lost at some point by
+the use of table, column and index names which exceeded the 30-character
 limit imposed by Oracle on all system identifiers.
 
 The high-level solution to the problem is very simple and straightforward:
@@ -21,11 +21,11 @@ Shorten the datasource property values for two problematic object classes.
 
 =over 4
 
-=item * C<AjaxRating::HotObject>: CHANGE C<ajaxrating_hotobject> TO C<ar_hotobject>
+=item * C<AjaxRating::Object::HotObject>: CHANGE C<ajaxrating_hotobject> TO C<ar_hotobject>
 
-=item * C<AjaxRating::Vote>: CHANGE C<ajaxrating_vote> TO C<ar_vote>
+=item * C<AjaxRating::Object::Vote>: CHANGE C<ajaxrating_vote> TO C<ar_vote>
 
-=item * C<AjaxRating::VoteSummary>: CHANGE C<ajaxrating_votesummary> TO C<ar_votesumm>
+=item * C<AjaxRating::Object::VoteSummary>: CHANGE C<ajaxrating_votesummary> TO C<ar_votesumm>
 
 =back
 
@@ -49,17 +49,17 @@ the replaced_by_class property as the basis for its own properties.
 =cut
 sub legacy_properties {
     return {
-        'AjaxRating::HotObject::Legacy' => {
+        'AjaxRating::Object::HotObject::Legacy' => {
             datasource        => 'ajaxrating_hotobject',
-            replaced_by_class => 'AjaxRating::HotObject',
+            replaced_by_class => 'AjaxRating::Object::HotObject',
         },
-        'AjaxRating::Vote::Legacy' => {
+        'AjaxRating::Object::Vote::Legacy' => {
             datasource        => 'ajaxrating_vote',
-            replaced_by_class => 'AjaxRating::Vote',
+            replaced_by_class => 'AjaxRating::Object::Vote',
         },
-        'AjaxRating::VoteSummary::Legacy' => {
+        'AjaxRating::Object::VoteSummary::Legacy' => {
             datasource        => 'ajaxrating_votesummary',
-            replaced_by_class => 'AjaxRating::VoteSummary',
+            replaced_by_class => 'AjaxRating::Object::VoteSummary',
         }
     }
 }
@@ -76,12 +76,12 @@ relying heavily on MT::Object::LegacyFactory for its work.
 sub run {
     my $app          = shift;
     my $legacy_props = legacy_properties();
-    ###l4p $logger ||= MT::Log::Log4perl->new(); $logger->trace($legacy_props);
+    ##l4p $logger ||= MT::Log::Log4perl->new(); $logger->trace($legacy_props);
     require MT::Object::LegacyFactory;
 
     # Iterate over each legacy class defined in legacy_properties()
     foreach my $class ( keys %$legacy_props ) {
-        ###l4p $logger->info("Migrating data for $class");
+        ##l4p $logger->info("Migrating data for $class");
 
         # Dynamically create class for accessing legacy data tables
         my $props = MT::Object::LegacyFactory->init_class(

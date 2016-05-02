@@ -1,0 +1,26 @@
+<mt:ignore> ############# STAR RATER #############
+</mt:ignore>
+<mt:if name="rater_type" eq="star">
+    <div id="rater<mt:var name="obj_type"><mt:var name="obj_id">">
+        <ul id="rater_ul<mt:var name="obj_type"><mt:var name="obj_id">" class="unit-rating" style="width:<mt:var name="rater_length">;">
+            <li class="current-rating" id="rater_li<mt:var name="obj_type"><mt:var name="obj_id">" style="width:<mt:var name="star_width">;">Currently <mt:var name="avg_score">/<mt:var name="units"></li>
+            <mt:loop name="star_loop">
+                <li><a title="<mt:var name="__value__"> out of <mt:var name="units">" href="#" class="r<mt:var name="__value__">-unit rater" onclick="pushRating('<mt:var name="obj_type">',<mt:var name="obj_id">,<mt:var name="__value__">,<mt:var name="blog_id">,<mt:var name="total_score">,<mt:var name="vote_count">,<mt:var name="author_id">); return(false);"><mt:var name="__value__"></a></li>
+            </mt:loop>
+        </ul> <mt:if name="ratingl"><!-- AJAX Rating powered by MT Hacks http://mt-hacks.com/ajaxrating.html --></mt:if>
+        <span class="thanks" id="thanks<mt:var name="obj_type"><mt:var name="obj_id">"></span>
+    </div>
+
+<mt:ignore> ############# ONCLICK JS RATER #############
+</mt:ignore>
+<mt:elsif name="rater_type" eq="onclick_js">
+    pushRating('<mt:var name="obj_type">',<mt:var name="obj_id">,<mt:var name="points">,<mt:var name="blog_id">,<mt:var name="total_score">,<mt:var name="vote_count">,<mt:var name="author_id">); return(false);
+
+<mt:ignore> ############# OTHER RATER #############
+</mt:ignore>
+<mt:else>
+    <span id="thumb<mt:var name="obj_type"><mt:var name="obj_id">">
+        <a href="#" title="Vote up" onclick="pushRating('<mt:var name="obj_type">',<mt:var name="obj_id">,1,<mt:var name="blog_id">,<mt:var name="total_score">,<mt:var name="vote_count">,<mt:var name="author_id">); return(false);"><img src="<mt:var name="static_path">/up.gif" alt="Vote up" /></a> <a href="#" title="Vote down" onclick="pushRating('<mt:var name="obj_type">',<mt:var name="obj_id">,-1,<mt:var name="blog_id">,<mt:var name="total_score">,<mt:var name="vote_count">,<mt:var name="author_id">); return(false);"><img src="<mt:var name="static_path">/down.gif" alt="Vote down" /></a> <mt:if name="report_icon"><a href="#" title="Report this comment" onclick="reportComment(<mt:var name="obj_id">); return(false);"><img src="<mt:var name="static_path">/report.gif" alt="Report this comment" /></a></mt:if>
+    </span><span class="thanks" id="thanks<mt:var name="obj_type"><mt:var name="obj_id">"></span>
+
+</mt:if>
