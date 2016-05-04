@@ -2,6 +2,7 @@ package AjaxRating::Object::VoteSummary;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use YAML::Tiny;
 use Try::Tiny;
 use Carp            qw( carp croak );

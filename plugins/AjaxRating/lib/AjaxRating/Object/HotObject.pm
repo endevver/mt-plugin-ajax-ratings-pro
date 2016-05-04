@@ -2,6 +2,7 @@ package AjaxRating::Object::HotObject;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use Scalar::Util qw( blessed );
 
 use AjaxRating::Object;

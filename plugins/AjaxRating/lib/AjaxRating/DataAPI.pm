@@ -2,6 +2,8 @@ package AjaxRating::DataAPI {
 
     use strict;
     use warnings;
+    use 5.0101;  # Perl v5.10.1 minimum
+    use Try::Tiny;
     use MT::DataAPI::Endpoint::Common;
     use MT::DataAPI::Resource;
     # use DDP;
@@ -9,6 +11,9 @@ package AjaxRating::DataAPI {
     sub setup_request {
         my ( $app, $endpoint, @required ) = ( @_, qw( obj_type obj_id ));
         my ( $terms, $args, $options );
+
+        $app->param( 'format',    $app->param('format')    || 'json'    );
+        $app->param( 'direction', $app->param('direction') || 'descend' );
 
         my %param = $app->param_hash;
 
@@ -18,10 +23,9 @@ package AjaxRating::DataAPI {
             $terms->{blog_id} = $blog_id;
         }
 
-        if ( $app->user && $app->user->id ) {
-            $param{voter_id} = $app->user->id;
-        }
-        else { delete $param{voter_id} }
+        # Only allow voter_id to be the ID of the logged in user
+        try   { $param{voter_id} = $app->user->id or die }
+        catch { delete $param{voter_id}                  };
 
         unless ( $param{obj_id} ) {
             my $id_field   = ($param{obj_type} || '').'_id';
@@ -37,6 +41,17 @@ package AjaxRating::DataAPI {
             # p %{{ $app->param_hash }};
             return $app->error("Required parameters not found: $missing");
         }
+
+        if ( $terms->{obj_id} =~ m{,} ) {
+            if ( $app->request_method eq 'POST' ) {
+                return $app->error(
+                    'You cannot make a POST request against multiple objects' );
+            }
+            $terms->{obj_id} = [ split( /\s*,\s*/, $terms->{obj_id} ) ];
+            $args->{limit}   = scalar @{ $terms->{obj_id} };
+        }
+
+        $args->{limit} ||= $param{limit} || 10;
 
         return ( $terms, $args, $options ) unless @missing;
     }
@@ -162,23 +177,3 @@ package AjaxRating::DataAPI {
 
 __END__
 
-sub obj_to_json_hash {
-    my $obj   = shift or return {};
-    my $props = $obj->properties;
-    my $item  = $obj->get_values();
-    foreach my $k ( @{$obj->column_names} ) {
-        # Set default for column if undefined
-        my ( $def, $type ) = map { $props->{column_defs}{$k}{$_} }
-                                qw( default type );
-        $item->{$k} //= $def if defined $def;
-
-        # Explicitly convert to proper data type for JSON outpit
-        $item->{$k} = ($item->{$k}//0) + 0
-            if (grep { $type eq $_ } qw( float integer ));
-
-        $item->{$k}
-            = MT::Util::ts2iso( $item->{blog_id}, $item->{$k} )
-                    if $type eq 'datetime';
-    }
-    return $item;
-}

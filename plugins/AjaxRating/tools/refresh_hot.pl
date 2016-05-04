@@ -2,6 +2,8 @@
 #
 
 use strict;
+use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use Getopt::Long;
 
 my($MT_DIR);

@@ -7,11 +7,9 @@ use warnings;
 use 5.0101;  # Perl v5.10.1 minimum
 use Try::Tiny;
 use YAML::Tiny;
-use Object::Dumb;
 use Carp            qw( croak );
 use List::MoreUtils qw( first_result first_value );
 use Scalar::Util    qw( blessed looks_like_number );
-
 use MT;
 use MT::Plugin;
 use MT::Util qw( epoch2ts );

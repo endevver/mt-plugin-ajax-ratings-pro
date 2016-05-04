@@ -1,5 +1,7 @@
 #!/usr/local/bin/perl
 
+use strict;
+use warnings;
 use Test::More;
 
 package Test::AjaxRating::Object::Load {

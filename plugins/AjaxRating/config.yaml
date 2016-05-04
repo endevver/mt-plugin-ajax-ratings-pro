@@ -138,6 +138,19 @@ applications:
             ### VOTESUMMARY ENDPOINTS ###
             #############################
             -
+                id:                     ajaxrating_get_site_votesummary
+                verb:                   GET
+                route:                  /sites/:site_id/ajaxrating
+                handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
+                requires_login:         0
+                version:                1
+                default_params:
+                    obj_type:           site
+                    sort:               id
+                    limit:              1
+                error_codes:
+                    403:                Do not have permission to retrieve the requested content.
+            -
                 id:                     ajaxrating_get_entry_votesummary
                 verb:                   GET
                 route:                  /sites/:site_id/entries/:entry_id/ajaxrating
@@ -145,10 +158,8 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           entry
                     sort:               id
-                    direction:          descend
                     limit:              1
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
@@ -160,25 +171,20 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           comment
                     sort:               id
-                    direction:          descend
                     limit:              1
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             -
-                id:                     ajaxrating_get_blog_object_votesummary
+                id:                     ajaxrating_get_site_object_votesummary
                 verb:                   GET
                 route:                  /sites/:site_id/:obj_type/:obj_id/ajaxrating
                 handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
-                    obj_type:           entry
                     sort:               id
-                    direction:          descend
                     limit:              1
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
@@ -190,9 +196,7 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     sort:               id
-                    direction:          descend
                     limit:              1
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
@@ -204,15 +208,26 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     sort:               id
-                    direction:          descend
                     limit:              1
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             ###########################
             ### GET VOTES ENDPOINTS ###
             ###########################
+            -
+                id:                     ajaxrating_get_site_votes
+                verb:                   GET
+                route:                  /sites/:site_id/ajaxrating/votes
+                handler:                $AjaxRating::AjaxRating::DataAPI::get_votes
+                requires_login:         0
+                version:                1
+                default_params:
+                    obj_type:           site
+                    sort:               id
+                    limit:              10
+                error_codes:
+                    403:                Do not have permission to retrieve the requested content.
             -
                 id:                     ajaxrating_get_entry_votes
                 verb:                   GET
@@ -221,11 +236,9 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           entry
                     sort:               id
-                    direction:          descend
-                    limit:              1
+                    limit:              10
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             -
@@ -236,26 +249,21 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           comment
                     sort:               id
-                    direction:          descend
-                    limit:              1
+                    limit:              10
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             -
-                id:                     ajaxrating_get_blog_object_votes
+                id:                     ajaxrating_get_site_object_votes
                 verb:                   GET
                 route:                  /sites/:site_id/:obj_type/:obj_id/ajaxrating/votes
                 handler:                $AjaxRating::AjaxRating::DataAPI::get_votes
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
-                    obj_type:           entry
                     sort:               id
-                    direction:          descend
-                    limit:              1
+                    limit:              10
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             -
@@ -266,10 +274,8 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     sort:               id
-                    direction:          descend
-                    limit:              1
+                    limit:              10
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             -
@@ -280,15 +286,24 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
                     sort:               id
-                    direction:          descend
-                    limit:              1
+                    limit:              10
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             #############################
             ###  ADD_VOTE ENDPOINTS   ###
             #############################
+            -
+                id:                     ajaxrating_add_site_vote
+                verb:                   POST
+                route:                  /sites/:site_id/ajaxrating
+                handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
+                requires_login:         1
+                version:                1
+                default_params:
+                    obj_type:           site
+                error_codes:
+                    403:                Do not have permission to create the requested resource
             -
                 id:                     ajaxrating_add_entry_vote
                 verb:                   POST
@@ -297,7 +312,6 @@ applications:
                 requires_login:         1
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           entry
                 error_codes:
                     403:                Do not have permission to create the requested resource
@@ -309,19 +323,16 @@ applications:
                 requires_login:         1
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           comment
                 error_codes:
                     403:                Do not have permission to create the requested resource
             -
-                id:                     ajaxrating_add_blog_object_vote
+                id:                     ajaxrating_add_site_object_vote
                 verb:                   POST
                 route:                  /sites/:site_id/:obj_type/:obj_id/ajaxrating
                 handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
                 requires_login:         1
                 version:                1
-                default_params:
-                    format:             json
                 error_codes:
                     403:                Do not have permission to create the requested resource.
             -
@@ -331,8 +342,6 @@ applications:
                 handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
                 requires_login:         1
                 version:                1
-                default_params:
-                    format:             json
                 error_codes:
                     403:                Do not have permission to create the requested resource.
             -
@@ -342,13 +351,22 @@ applications:
                 handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
                 requires_login:         1
                 version:                1
-                default_params:
-                    format:             json
                 error_codes:
                     403:                Do not have permission to create the requested resource.
             #############################
             ### REMOVE_VOTE ENDPOINTS ###
             #############################
+            -
+                id:                     ajaxrating_remove_site_vote
+                verb:                   DELETE
+                route:                  /sites/:site_id/ajaxrating
+                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
+                requires_login:         1
+                version:                1
+                default_params:
+                    obj_type:           site
+                error_codes:
+                    403:                Do not have permission to remove the requested resource
             -
                 id:                     ajaxrating_remove_entry_vote
                 verb:                   DELETE
@@ -357,10 +375,9 @@ applications:
                 requires_login:         1
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           entry
                 error_codes:
-                    403:                Do not have permission to create the requested resource
+                    403:                Do not have permission to remove the requested resource
             -
                 id:                     ajaxrating_remove_comment_vote
                 verb:                   DELETE
@@ -369,21 +386,18 @@ applications:
                 requires_login:         1
                 version:                1
                 default_params:
-                    format:             json
                     obj_type:           comment
                 error_codes:
-                    403:                Do not have permission to retrieve the requested content.
+                    403:                Do not have permission to remove the requested resource
             -
-                id:                     ajaxrating_remove_blog_object_vote
+                id:                     ajaxrating_remove_site_object_vote
                 verb:                   DELETE
                 route:                  /sites/:site_id/:obj_type/:obj_id/ajaxrating
                 handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
                 requires_login:         1
                 version:                1
-                default_params:
-                    format:             json
                 error_codes:
-                    403:                Do not have permission to create the requested resource.
+                    403:                Do not have permission to remove the requested resource
             -
                 id:                     ajaxrating_remove_object_vote
                 verb:                   DELETE
@@ -391,10 +405,8 @@ applications:
                 handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
                 requires_login:         1
                 version:                1
-                default_params:
-                    format:             json
                 error_codes:
-                    403:                Do not have permission to create the requested resource.
+                    403:                Do not have permission to remove the requested resource
             -
                 id:                     ajaxrating_remove_vote
                 verb:                   DELETE
@@ -402,10 +414,8 @@ applications:
                 handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
                 requires_login:         1
                 version:                1
-                default_params:
-                    format:             json
                 error_codes:
-                    403:                Do not have permission to create the requested resource.
+                    403:                Do not have permission to remove the requested resource
             ###############################
             ###   VOTE OBJECT ENDPOINTS ###
             ###############################
@@ -417,8 +427,7 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
-                    obj_type:           entry
+                    obj_type:           vote
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
             -
@@ -429,7 +438,7 @@ applications:
                 requires_login:         1
                 version:                1
                 default_params:
-                    format:             json
+                    obj_type:           vote
                 error_codes:
                     403:                Do not have permission to delete the requested resource.
             ################################
@@ -443,7 +452,7 @@ applications:
                 requires_login:         0
                 version:                1
                 default_params:
-                    format:             json
+                    obj_type:           user
                 error_codes:
                     403:                Do not have permission to retrieve the requested content.
 

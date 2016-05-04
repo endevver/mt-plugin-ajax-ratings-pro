@@ -2,7 +2,7 @@ package AjaxRating::Object {
 
     use strict;
     use warnings;
-    use 5.0101;
+    use 5.0101;  # Perl v5.10.1 minimum
     use Try::Tiny;
     use Carp            qw( croak );
     use List::MoreUtils qw( first_value );

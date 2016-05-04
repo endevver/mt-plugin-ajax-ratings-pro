@@ -4,7 +4,7 @@ package AjaxRating::Object::Vote;
 
 use strict;
 use warnings;
-use 5.0101;
+use 5.0101;  # Perl v5.10.1 minimum
 use Carp         qw( croak );
 use Scalar::Util qw( blessed looks_like_number );
 

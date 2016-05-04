@@ -2,6 +2,8 @@ package AjaxRating::App::AddVote;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
+
 use AjaxRating::App;
 @AjaxRating::App::AddVote::ISA = qw( AjaxRating::App );
 

@@ -4,6 +4,7 @@ package AjaxRating::App::ReportComment;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use Sub::Install;
 
 use AjaxRating::App;
@@ -56,14 +57,14 @@ sub default_mode {
                  $app->translate('Name:') . ' ' . $comment->author . "\n\n" .
                  $app->translate('Email:') . "\n" . $comment->email . "\n\n" .
                  $app->translate('URL:') . ' ' . $comment->url . "\n\n" .
-                 $app->translate('Comments:') . "\n" . $comment->text . "\n\n" . 
+                 $app->translate('Comments:') . "\n" . $comment->text . "\n\n" .
                  $app->translate('Edit:') . "\n" . $editpath . "\n\n";
             MT::Mail->send(\%head, $body);
     }
     return "ERR||This comment has been reported."
 }
 
-BEGIN { 
+BEGIN {
     Sub::Install::install_sub({     # Backwards compat
         code => 'default_mode',
         as   => 'report'

@@ -2,6 +2,7 @@ package AjaxRating::App;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use MT::App;
 @AjaxRating::App::ISA = qw( MT::App );
 

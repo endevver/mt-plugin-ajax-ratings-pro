@@ -2,6 +2,7 @@ package AjaxRating::CMS;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 
 # From the Vote Activity Log (listing framework), delete a vote or votes.
 sub vote_delete {

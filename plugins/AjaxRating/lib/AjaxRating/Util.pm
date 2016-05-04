@@ -2,6 +2,7 @@ package AjaxRating::Util {
 
     use strict;
     use warnings;
+    use 5.0101;  # Perl v5.10.1 minimum
     use Scalar::Util qw( blessed looks_like_number );
     use List::MoreUtils qw( first_value first_result );
 

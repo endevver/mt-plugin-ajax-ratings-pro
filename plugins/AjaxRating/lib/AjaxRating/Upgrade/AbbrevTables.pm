@@ -2,6 +2,7 @@ package AjaxRating::Upgrade::AbbrevTables;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use base qw( MT::ErrorHandler );
 # use MT::Log::Log4perl qw( l4mtdump ); use Log::Log4perl qw( :resurrect ); my $logger ||= MT::Log::Log4perl->new();
 

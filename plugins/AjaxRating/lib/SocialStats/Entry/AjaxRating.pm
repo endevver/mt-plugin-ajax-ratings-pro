@@ -2,6 +2,7 @@ package SocialStats::Entry::AjaxRating;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use MT;
 
 sub social_count {
