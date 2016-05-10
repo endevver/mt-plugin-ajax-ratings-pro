@@ -38,7 +38,7 @@ package Test::AjaxRating::Tools {
         # 'Log::Log4perl::Resurrector' => undef,
         # 'MT::Logger::Log4perl'       => 'get_logger l4mtdump :resurrect',
         'Data::Printer'              => \"$dataprinter_cfg",
-        'MT'                         => undef,
+        # 'MT'                         => undef,
     );
 };
 
