@@ -586,8 +586,8 @@ sub object_from_args {
     my ( $ctx, $args ) = @_;
     my %h = ( obj_type => $args->{type} || '',
               obj_id   => $args->{id}   || 0  );
-    $h{type} = $h{type} eq 'trackback' ? 'ping'
-             : $h{type}                ? $h{type}
+    $h{obj_type} = $h{obj_type} eq 'trackback' ? 'ping'
+                 : $h{obj_type}                ? $h{obj_type}
                  : $ctx->stash('comment')      ? 'comment'
                                                : 'entry';
     unless ( $h{obj_id} ) {
