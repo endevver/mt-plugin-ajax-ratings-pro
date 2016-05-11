@@ -249,10 +249,11 @@ package AjaxRating::Object {
     sub pre_save {
         shift @_; # $obj repeated from
         my ( $cb, $obj, $obj_orig ) = @_;
+        my $app     = MT->instance;
+
         require MT::Util;
         my $ts      = MT::Util::epoch2ts( undef, time );
-        my $app     = MT->instance;
-        my $user_id = $app->can('user') ? $app->user->id : undef;
+        my $user_id = $app->can('user') && $app->user ? $app->user->id : undef;
         for ( $obj, $obj_orig ) {
             $_->modified_on($ts);
             $_->modified_by( $user_id );
