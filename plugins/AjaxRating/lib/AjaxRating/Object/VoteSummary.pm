@@ -124,8 +124,7 @@ sub object_matches {
     if ( $obj_class =~ m/^AjaxRating::Object::(Vote(Summary)?|HotObject)$/ ) {
         my ( $obj_blog, $self_blog ) = map { $_ || 0 }
                                         $obj->blog_id, $self->blog_id;
-        return 1 if $obj_blog      == $self_blog
-                and $obj->obj_id   == $self->obj_id
+        return 1 if $obj->obj_id   == $self->obj_id
                 and $obj->obj_type eq $self->obj_type;
         $die and $die = [
             $self_blog, $self->obj_type, $self->obj_id,

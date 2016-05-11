@@ -197,7 +197,6 @@ package AjaxRating::Object {
         return +{
             obj_id   => $self->obj_id,
             obj_type => $self->obj_type,
-            $self->blog_id ? ( blog_id => $self->blog_id ) : ()
         };
     }
 
@@ -257,6 +256,15 @@ package AjaxRating::Object {
         for ( $obj, $obj_orig ) {
             $_->modified_on($ts);
             $_->modified_by( $user_id );
+        }
+
+        my $blog_id = $obj->blog_id
+                   || try { $obj->object->blog_id }
+                   || try { $app->blog->id };
+
+        if ( $blog_id ) {
+            $obj->blog_id( $blog_id );
+            $obj_orig->blog_id( $blog_id );
         }
 
         # Sync author_id/voter_id and created_by, preferring the former
