@@ -310,36 +310,36 @@ settings:
 
 tags:
     function:
-       AjaxRating:                     AjaxRating::ajax_rating
-       AjaxRatingAverageScore:         AjaxRating::ajax_rating_avg_score
-       AjaxRatingAvgScore:             AjaxRating::ajax_rating_avg_score
-       AjaxRatingTotalScore:           AjaxRating::ajax_rating_total_score
-       AjaxRatingVoteCount:            AjaxRating::ajax_rating_vote_count
-       AjaxRatingTotalVotesInBlog:     AjaxRating::ajax_rating_total_votes_in_blog
-       AjaxRater:                      AjaxRating::rater
-       AjaxStarRater:                  AjaxRating::star_rater
-       AjaxThumbRater:                 AjaxRating::thumb_rater
-       AjaxRaterOnclickJS:             AjaxRating::rater_onclick_js
-       AjaxRatingEntryMax:             AjaxRating::entry_max
-       AjaxRatingCommentMax:           AjaxRating::comment_max
-       AjaxStarRaterWidth:             AjaxRating::star_rater_width
-       AjaxStarRaterAverageScoreWidth: AjaxRating::star_rater_avg_score_width
-       AjaxStarUnitWidth:              AjaxRating::star_unit_width
-       AjaxRatingDefaultThreshold:     AjaxRating::default_threshold
-       AjaxRatingRefreshHot:           AjaxRating::refresh_hot
-       AjaxRatingUserVoteCount:        AjaxRating::ajax_rating_user_vote_count
+       AjaxRating:                     $AjaxRating::AjaxRating::ajax_rating
+       AjaxRatingAverageScore:         $AjaxRating::AjaxRating::ajax_rating_avg_score
+       AjaxRatingAvgScore:             $AjaxRating::AjaxRating::ajax_rating_avg_score
+       AjaxRatingTotalScore:           $AjaxRating::AjaxRating::ajax_rating_total_score
+       AjaxRatingVoteCount:            $AjaxRating::AjaxRating::ajax_rating_vote_count
+       AjaxRatingTotalVotesInBlog:     $AjaxRating::AjaxRating::ajax_rating_total_votes_in_blog
+       AjaxRater:                      $AjaxRating::AjaxRating::rater
+       AjaxStarRater:                  $AjaxRating::AjaxRating::star_rater
+       AjaxThumbRater:                 $AjaxRating::AjaxRating::thumb_rater
+       AjaxRaterOnclickJS:             $AjaxRating::AjaxRating::rater_onclick_js
+       AjaxRatingEntryMax:             $AjaxRating::AjaxRating::entry_max
+       AjaxRatingCommentMax:           $AjaxRating::AjaxRating::comment_max
+       AjaxStarRaterWidth:             $AjaxRating::AjaxRating::star_rater_width
+       AjaxStarRaterAverageScoreWidth: $AjaxRating::AjaxRating::star_rater_avg_score_width
+       AjaxStarUnitWidth:              $AjaxRating::AjaxRating::star_unit_width
+       AjaxRatingDefaultThreshold:     $AjaxRating::AjaxRating::default_threshold
+       AjaxRatingRefreshHot:           $AjaxRating::AjaxRating::refresh_hot
+       AjaxRatingUserVoteCount:        $AjaxRating::AjaxRating::ajax_rating_user_vote_count
     block:
        IfAjaxRatingBelowThreshold?: AjaxRating::below_threshold
-       AjaxRatingList:                AjaxRating::listing
-       AjaxRatingEntries:             AjaxRating::listing_entries
-       AjaxRatingComments:            AjaxRating::listing_comments
-       AjaxRatingPings:               AjaxRating::listing_pings
-       AjaxRatingBlogs:               AjaxRating::listing_blogs
-       AjaxRatingCategories:          AjaxRating::listing_categories
-       AjaxRatingTags:                AjaxRating::listing_tags
-       AjaxRatingAuthors:             AjaxRating::listing_authors
-       AjaxRatingUserVotes:           AjaxRating::listing_user_votes
-       AjaxRatingVoteDistribution:    AjaxRating::listing_vote_distribution
+       AjaxRatingList:                $AjaxRating::AjaxRating::listing
+       AjaxRatingEntries:             $AjaxRating::AjaxRating::listing_entries
+       AjaxRatingComments:            $AjaxRating::AjaxRating::listing_comments
+       AjaxRatingPings:               $AjaxRating::AjaxRating::listing_pings
+       AjaxRatingBlogs:               $AjaxRating::AjaxRating::listing_blogs
+       AjaxRatingCategories:          $AjaxRating::AjaxRating::listing_categories
+       AjaxRatingTags:                $AjaxRating::AjaxRating::listing_tags
+       AjaxRatingAuthors:             $AjaxRating::AjaxRating::listing_authors
+       AjaxRatingUserVotes:           $AjaxRating::AjaxRating::listing_user_votes
+       AjaxRatingVoteDistribution:    $AjaxRating::AjaxRating::listing_vote_distribution
 
 socialstats_services:
   ajaxrating:
