@@ -6,14 +6,18 @@ package AjaxRating::DataAPI {
     use Try::Tiny;
     use MT::DataAPI::Endpoint::Common;
     use MT::DataAPI::Resource;
-    # use DDP;
 
     sub setup_request {
-        my ( $app, $endpoint, @required ) = ( @_, qw( obj_type obj_id ));
+        my ( $app, $endpoint, @required ) = @_;
+        my $id = $app->param('id_param');
+
+        push( @required, 'obj_type', $id )
+            unless $endpoint->{id} eq 'fetch_vote_by_id';
+
         my ( $terms, $args, $options );
 
         $app->param( 'format',    $app->param('format')    || 'json'    );
-        $app->param( 'direction', $app->param('direction') || 'descend' );
+        $app->param( 'sortOrder', $app->param('direction') || 'descend' );
 
         my %param = $app->param_hash;
 
@@ -27,14 +31,18 @@ package AjaxRating::DataAPI {
         try   { $param{voter_id} = $app->user->id or die }
         catch { delete $param{voter_id}                  };
 
-        unless ( $param{obj_id} ) {
+        $param{obj_type} =~ s{ies$}{y};
+        $param{obj_type} =~ s{s$}{};
+
+        unless ( $param{$id} ) {
             my $id_field   = ($param{obj_type} || '').'_id';
             my $obj_id     = delete $param{$id_field};
-            $param{obj_id} = $obj_id if $obj_id;
+            $param{$id}    = $obj_id if $obj_id;
         }
 
         my @missing
-            = grep { ! defined( $terms->{$_} = $param{$_} ) } @required;
+            = grep { say "Setting terms for $_";
+                     ! defined( $terms->{$_} = $param{$_} ) } @required;
 
         if ( @missing ) {
             my $missing = join(', ', @missing );
@@ -42,6 +50,7 @@ package AjaxRating::DataAPI {
             return $app->error("Required parameters not found: $missing");
         }
 
+        $terms->{obj_id} ||= delete $terms->{obj_ids};
         if ( $terms->{obj_id} =~ m{,} ) {
             if ( $app->request_method eq 'POST' ) {
                 return $app->error(
@@ -56,7 +65,7 @@ package AjaxRating::DataAPI {
         return ( $terms, $args, $options ) unless @missing;
     }
 
-    sub get_votesummary {
+    sub fetch_summary {
         my ( $app, $endpoint )         = @_;
         my ( $terms, $args, $options ) = setup_request( $app, $endpoint );
 
@@ -76,7 +85,7 @@ package AjaxRating::DataAPI {
         };
     }
 
-    sub get_votes {
+    sub list_votes {
         my ( $app, $endpoint )         = @_;
         my ( $terms, $args, $options ) = setup_request( $app, $endpoint );
 
@@ -109,6 +118,46 @@ package AjaxRating::DataAPI {
         save_object( $app, 'ajaxrating_vote', $vote ) or return;
 
         $vote;
+    }
+
+    sub fetch_vote {
+        my ( $app, $endpoint ) = @_;
+        my ( $terms, $args, $options )
+            = setup_request( $app, $endpoint, 'voter_id' );
+
+        return unless $terms;
+
+        my $type = 'ajaxrating_vote';
+        my $Vote = MT->model( $type );
+        my $vote = $Vote->load($terms);
+    }
+
+    sub fetch_vote_by_id {
+        my ( $app, $endpoint ) = @_;
+        my ( $terms, $args );
+
+        my $type = 'ajaxrating_vote';
+        my $Vote = MT->model( $type );
+        my $id   = $app->param('vote_ids')
+            or return $app->error('Missing vote ID parameter');
+
+        return $Vote->load($id) unless $id =~ m{,};
+
+        $terms->{id} = [ split( /\s*,\s*/, $id ) ];
+        $args->{limit}   = scalar @{ $terms->{id} };
+
+        my $res = filtered_list( $app, $endpoint, $type, $terms, $args);
+
+        return unless $res;
+
+        my $items
+            = MT::DataAPI::Resource::Type::ObjectList->new($res->{objects});
+
+        return +{
+            totalResults => $res->{count} + 0,
+            itemCount    => scalar @{ $res->{objects} || [] },
+            items        => $items,
+        };
     }
 
     sub remove_vote {

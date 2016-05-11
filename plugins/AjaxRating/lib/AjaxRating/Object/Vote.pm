@@ -164,7 +164,7 @@ sub save_filter {
 
     # REQUIRED FIELDS
     my @required     = qw( blog_id obj_type obj_id score );
-    ### TODO Decision: Should ratings of things which are not child objects  of a blog be allowed? (i.e. no blog_id; e.g. authors)
+    ### TODO Decision: Should ratings of things which are not child objects of a blog be allowed? (i.e. no blog_id; e.g. authors)
 
     # MIN/MAX SCORE
     my ( $min_score, $max_score ) = ( undef, 10 );
@@ -226,7 +226,7 @@ sub save_filter {
     }
 
     if ( $obj->voter_id ) {
-        return $app->error('You have already voted on this item.')
+        return $app->error('You have already voted on '. $obj->obj_type. ' ID '.$obj->obj_id)
             if ref($obj)->exist({ %terms, voter_id => $obj->voter_id });
     }
     else {
