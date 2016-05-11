@@ -6,10 +6,10 @@ package Test::AjaxRating::Tools {
     use base 'ToolSet';
 
     # die "MT_HOME not set" unless $ENV{MT_HOME};
-    my $dataprinter_cfg
-        = "output=>'stderr',colored=>0,caller_info=>1,deparse=>1,"
-        . "filters => { 'MT::App::DataAPI' => sub{ \$_[0] }, 'MT::Plugin' => sub{ \$_[0] }, 'MT::App::CMS' => sub{ \$_[0] }, 'AjaxRating::App::AddVote' => sub{ \$_[0] }, 'AjaxRating::App::GetVotes' => sub{ \$_[0] }, 'AjaxRating::App::ReportComment' => sub{ \$_[0] } }"
-        . ($ENV{DATAPRINTERRC} ? ", rc_file=>'".$ENV{DATAPRINTERRC}."'" : '' );
+    # my $dataprinter_cfg
+    #     = "output=>'stderr',colored=>0,caller_info=>1,deparse=>1,"
+    #     . "filters => { 'MT::App::DataAPI' => sub{ \$_[0] }, 'MT::Plugin' => sub{ \$_[0] }, 'MT::App::CMS' => sub{ \$_[0] }, 'AjaxRating::App::AddVote' => sub{ \$_[0] }, 'AjaxRating::App::GetVotes' => sub{ \$_[0] }, 'AjaxRating::App::ReportComment' => sub{ \$_[0] } }"
+    #     . ($ENV{DATAPRINTERRC} ? ", rc_file=>'".$ENV{DATAPRINTERRC}."'" : '' );
 
     ToolSet->use_pragma('strict');
     ToolSet->use_pragma('warnings');
@@ -37,7 +37,6 @@ package Test::AjaxRating::Tools {
         'Carp::Always'               => undef,
         # 'Log::Log4perl::Resurrector' => undef,
         # 'MT::Logger::Log4perl'       => 'get_logger l4mtdump :resurrect',
-        'Data::Printer'              => \"$dataprinter_cfg",
         # 'MT'                         => undef,
     );
 };
