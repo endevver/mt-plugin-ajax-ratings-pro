@@ -42,7 +42,7 @@ package AjaxRating::DataAPI {
         }
 
         my @missing
-            = grep { say "Setting terms for $_";
+            = grep { #say "Setting terms for $_";
                      ! defined( $terms->{$_} = $param{$_} ) } @required;
 
         if ( @missing ) {
@@ -146,7 +146,7 @@ package AjaxRating::DataAPI {
         my $type = 'ajaxrating_vote';
         my $Vote = MT->model( $type );
         my $id   = $app->param('vote_ids')
-            or return $app->error('Missing vote ID parameter');
+            or return $app->error('Missing parameter: vote_ids');
 
         return $Vote->load($id) unless $id =~ m{,};
 
@@ -203,8 +203,8 @@ package AjaxRating::DataAPI {
             unless $app->user && $app->user->is_superuser;
 
         my $Vote  = $app->model('ajaxrating_vote');
-        my @ids   = split( /\s*,\s*/, $app->param('vote_id')||'' )
-            or return +{ error => 'No vote_id specified' };
+        my @ids   = split( /\s*,\s*/, $app->param('vote_ids')||'' )
+            or return +{ error => 'Missing parameter: vote_ids' };
 
         my @votes = $app->model('ajaxrating_vote')->load(
             @ids > 1 ? { id => \@ids } : $ids[0]
