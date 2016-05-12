@@ -69,12 +69,15 @@ package AjaxRating::DataAPI {
     sub fetch_summary {
         my ( $app, $endpoint )         = @_;
         my ( $terms, $args, $options ) = setup_request( $app, $endpoint );
-
         return unless $terms;
 
         my $res = filtered_list( $app, $endpoint, 'ajaxrating_votesummary',
                                  $terms, $args, $options );
         return unless $res;
+
+        unless ( ref($terms->{obj_id}) or $res->{count} > 1 ) {
+            return shift @{ $res->{objects} || [] } || {};
+        }
 
         my $items
             = MT::DataAPI::Resource::Type::ObjectList->new($res->{objects});
