@@ -148,7 +148,6 @@ applications:
                 verb:                   GET
                 route:                  /ar/:obj_type/:obj_ids
                 handler:                $AjaxRating::AjaxRating::DataAPI::fetch_summary
-                # handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
                 requires_login:         0
                 version:                1
                 default_params:
@@ -199,7 +198,7 @@ applications:
                 verb:                   GET
                 route:                  /ar/:obj_type/:obj_ids/vote
                 handler:                $AjaxRating::AjaxRating::DataAPI::fetch_vote
-                requires_login:         0
+                requires_login:         1
                 version:                1
                 default_params:
                     sortBy:             id
@@ -231,7 +230,7 @@ applications:
                 verb:                   GET
                 route:                  /ar/votes/:vote_ids
                 handler:                $AjaxRating::AjaxRating::DataAPI::fetch_vote_by_id
-                requires_login:         0
+                requires_login:         1
                 version:                1
                 default_params:
                     obj_type:           vote

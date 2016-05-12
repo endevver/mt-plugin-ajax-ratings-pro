@@ -140,6 +140,9 @@ package AjaxRating::DataAPI {
         my ( $app, $endpoint ) = @_;
         my ( $terms, $args );
 
+        return $app->error( 'Unauthorized', 401 )
+            unless $app->user && $app->user->is_superuser;
+
         my $type = 'ajaxrating_vote';
         my $Vote = MT->model( $type );
         my $id   = $app->param('vote_ids')
@@ -195,6 +198,10 @@ package AjaxRating::DataAPI {
 
     sub remove_vote_by_id {
         my ( $app, $endpoint ) = @_;
+
+        return $app->error( 'Unauthorized', 401 )
+            unless $app->user && $app->user->is_superuser;
+
         my $Vote  = $app->model('ajaxrating_vote');
         my @ids   = split( /\s*,\s*/, $app->param('vote_id')||'' )
             or return +{ error => 'No vote_id specified' };
