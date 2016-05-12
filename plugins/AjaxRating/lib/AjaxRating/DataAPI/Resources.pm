@@ -8,7 +8,7 @@ package AjaxRating::DataAPI::Resources {
     sub vote_fields {
         [
             $MT::DataAPI::Resource::Common::fields{blog},
-            'blog_id',
+            # 'blog_id',
             $MT::DataAPI::Resource::Common::fields{createdDate},
             {
                 name  => 'id',
@@ -38,7 +38,6 @@ package AjaxRating::DataAPI::Resources {
             },
         ];
     }
-
 
     sub votesummary_fields {
         [
