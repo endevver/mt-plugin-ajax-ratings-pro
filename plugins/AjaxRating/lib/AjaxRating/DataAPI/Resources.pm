@@ -34,7 +34,10 @@ package AjaxRating::DataAPI::Resources {
             },
             {   name   => 'voter',
                 fields => [qw(id displayName userpicUrl)],
-                type   => 'MT::DataAPI::Resource::DataType::Object',
+                from_object => sub {
+                    my $author = shift()->voter or return;
+                    MT::DataAPI::Resource->from_object( $author );
+                },
             },
         ];
     }
@@ -53,7 +56,10 @@ package AjaxRating::DataAPI::Resources {
         [
             {   name   => 'author',
                 fields => [qw(id displayName userpicUrl)],
-                type   => 'MT::DataAPI::Resource::DataType::Object',
+                from_object => sub {
+                    my $author = shift()->author or return;
+                    MT::DataAPI::Resource->from_object( $author );
+                },
             },
             {   name   => 'avgScore',
                 alias  => 'avg_score',
