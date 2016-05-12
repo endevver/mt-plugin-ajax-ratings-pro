@@ -22,7 +22,8 @@ package AjaxRating::DataAPI {
         my %param = $app->param_hash;
 
         my $blog_id   = $app->param('site_id') || $app->param('blog_id');
-        if ( my $blog = MT->model('blog')->load( $blog_id ) ) {
+        my $blog = MT->model('blog')->load( $blog_id ) if $blog_id;
+        if ( $blog ) {
             $app->blog( $blog );
             $terms->{blog_id} = $blog_id;
         }
