@@ -713,7 +713,6 @@ sub rater {
     my $vsumm = MT->model('ajaxrating_votesummary')->get_by_key({
         obj_type => $obj_type,
         obj_id   => $obj_info{obj_id},
-        blog_id  => $blog->id,
     });
 
     my $param = {
