@@ -721,7 +721,7 @@ sub rater {
         map { $_ => $vsumm->$_ || 0 } @{$vsumm->column_names}
     };
 
-    if ( $args->{rater_type} eq 'star' ) {
+    if ( $param->{rater_type} eq 'star' ) {
         my $config       = get_config( $blog->id );
         my $unit_width   = $config->{unit_width};
         my $units        = $config->{$obj_type . '_max_points'}
@@ -739,7 +739,7 @@ sub rater {
                                 $param->{avg_score} / $units * $rater_length ),
         };
     }
-    elsif ( $args->{rater_type} eq 'onclick_js' ) {
+    elsif ( $param->{rater_type} eq 'onclick_js' ) {
         $param->{points} = defined ($args->{points}) ? $args->{points} : 1;
     }
     else {
