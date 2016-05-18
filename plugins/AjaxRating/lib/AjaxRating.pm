@@ -174,7 +174,8 @@ sub ajax_rating_total_score { ajax_rating(@_)                               }
 # Return the number of votes on Entries in the current blog.
 sub ajax_rating_total_votes_in_blog {
     my ( $ctx, $args ) = @_;
-    my $terms = { obj_type => 'entry', blog_id  => $ctx->stash('blog_id') };
+    my $terms = { blog_id  => $ctx->stash('blog_id'),
+                  obj_type => $args->{type} || 'entry' };
     return MT->instance->model('ajaxrating_vote')->count($terms) || 0;
 }
 
