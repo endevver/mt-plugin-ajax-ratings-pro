@@ -747,9 +747,13 @@ sub rater {
         $param->{static_path}
             = MT->instance->static_path . "plugins/AjaxRating/images";
     }
-
     my $plugin = MT->component('ajaxrating');
-    return $plugin->load_tmpl('rater.tmpl', $param );
+    my $tmpl = $plugin->load_tmpl( 'rater.tmpl' );
+    local $tmpl->{context} = $ctx;     # propagate our context
+    defined( my $out = $tmpl->output($param) )
+        or return $ctx->error( $tmpl->errstr );
+    $out =~ s{(\A\s+|\s+\Z)}{}g;
+    return $out;
 }
 
 

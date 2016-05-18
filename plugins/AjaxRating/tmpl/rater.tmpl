@@ -1,3 +1,4 @@
+<mt:section regex_replace="/\s+/ms","">
 <mt:ignore> ############# STAR RATER #############
 </mt:ignore>
 <mt:if name="rater_type" eq="star">
@@ -13,7 +14,7 @@
 
 <mt:ignore> ############# ONCLICK JS RATER #############
 </mt:ignore>
-<mt:elsif name="rater_type" eq="onclick_js">
+<mt:elseif name="rater_type" eq="onclick_js">
     pushRating('<mt:var name="obj_type">',<mt:var name="obj_id">,<mt:var name="points">,<mt:var name="blog_id">,<mt:var name="total_score">,<mt:var name="vote_count">,<mt:var name="author_id">); return(false);
 
 <mt:ignore> ############# OTHER RATER #############
@@ -24,3 +25,4 @@
     </span><span class="thanks" id="thanks<mt:var name="obj_type"><mt:var name="obj_id">"></span>
 
 </mt:if>
+</mt:section>
