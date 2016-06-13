@@ -48,8 +48,15 @@ sub send_response {
 
 sub _send_error {
     my ( $app, $msg, $format ) = @_;
+    $msg //= $app->errstr;
     $format ||= $app->param('format') || '';
     return $format eq 'json' ? $app->json_error( $msg ) : "ERR||$msg";
+}
+
+sub permission_denied {
+    my $app = shift;
+    $app->SUPER::permission_denied();
+    return $app->_send_error;
 }
 
 1;

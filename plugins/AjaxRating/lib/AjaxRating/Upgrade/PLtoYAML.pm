@@ -15,7 +15,7 @@ use 5.0101;  # Perl v5.10.1 minimum
 # to run. We can do this by checking on the old .pl plugin's existence in the
 # mt_config table and using that to know if we need to run an upgrade.
 sub run {
-    my $app = shift;
+    my ( $plugin, $app ) = @_;
 
     use MT::ConfigMgr;
     my $cfg = MT::ConfigMgr->instance;

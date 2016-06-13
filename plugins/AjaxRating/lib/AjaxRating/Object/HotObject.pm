@@ -4,9 +4,9 @@ use strict;
 use warnings;
 use 5.0101;  # Perl v5.10.1 minimum
 use Scalar::Util qw( blessed );
+use AjaxRating::Util qw( reporter );
 
-use AjaxRating::Object;
-@AjaxRating::Object::HotObject::ISA = qw( AjaxRating::Object );
+use parent qw( AjaxRating::Object );
 
 __PACKAGE__->install_properties({
     column_defs => {
@@ -58,6 +58,17 @@ sub pre_save {
     my ( $cb, $obj, $obj_orig ) = @_;
     $obj->SUPER::pre_save(@_);
 }
+
+sub post_save {
+    my ( $cb, $obj, $obj_orig ) = @_;
+    reporter(@_);
+}
+
+sub post_remove {
+    my ( $cb, $obj ) = @_;
+    reporter(@_);
+}
+
 
 1;
 

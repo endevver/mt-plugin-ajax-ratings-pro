@@ -8,8 +8,7 @@ use 5.0101;  # Perl v5.10.1 minimum
 use Carp         qw( croak );
 use Scalar::Util qw( blessed looks_like_number );
 
-use AjaxRating::Object;
-@AjaxRating::Object::Vote::ISA = qw( AjaxRating::Object );
+use parent qw( AjaxRating::Object );
 
 __PACKAGE__->install_properties({
     column_defs => {
@@ -17,9 +16,9 @@ __PACKAGE__->install_properties({
         'blog_id'  => 'integer default 0',
         'voter_id' => 'integer default 0',
         'obj_type' => 'string(50) not null',
-        'obj_id'   => 'string(255) default 0',
-        'score'    => 'integer default 0',
-        'ip'       => 'string(15)'
+        'obj_id'   => 'string(255) default 0', ### FIXME should be not null
+        'score'    => 'integer default 0',     ### FIXME should be not null
+        'ip'       => 'string(15)',            ### FIXME should be default ""
     },
     defaults    => {
         obj_type   => 'entry',
@@ -41,6 +40,8 @@ sub class_label {
 sub class_label_plural {
     MT->translate("Votes");
 }
+
+sub required_fields { qw( obj_type obj_id score ) }
 
 # Properties for the listing framework, to show the vote activity log.
 sub list_properties {
@@ -64,17 +65,20 @@ sub list_properties {
 sub voter {
     my $self    = shift;
     state $User = MT->model('user');
+    my $voter;
 
-    if ( my $user = shift ) {
-        if ( looks_like_number($user) ) {
-            $user = $self->{__voter} = $User->load( $user );
+    if ( my $voter = shift ) {
+        if ( looks_like_number($voter) ) {
+            $voter = $self->{__voter} = $User->load( $voter );
         }
-        elsif ( blessed($user) && $user->isa( $User ) ) {
-            $self->{__voter} = $user;
+        elsif ( blessed($voter) && $voter->isa( $User ) ) {
+            $self->{__voter} = $voter;
         }
-        else { croak "Unknown voter argument: ".$user }
+        else {
+            croak "Unknown voter argument: ".$voter
+        }
 
-        $self->voter_id( $user ? $user->id : undef );
+        $self->voter_id( try { $voter->id } || undef );
     }
 
     $self->{__voter} ||= $User->load( $self->voter_id )
@@ -96,159 +100,121 @@ sub subnet {
     return $subnet;
 }
 
+##########################################
+######## OBJECT CALLBACK HANDLERS ########
+##########################################
+
+sub post_remove {
+    my ( $cb, $obj ) = @_;
+
+    # Remove the vote from the votesummary and rebuild the required pages
+    my $vsumm = $obj->votesummary;
+    $vsumm->remove_vote( $obj ) if $vsumm->id;
+    $obj->rebuild_vote_object();
+
+    return 1;
+}
+
 sub pre_save {
     my ( $cb, $obj, $obj_orig ) = @_;
 
-    $obj->SUPER::pre_save(@_);
+    $obj->SUPER::pre_save(@_) or return;
 
-    if ( $obj->id ) {
-        # This vote was previously counted in the votesummary so remove it first since it will be added in the post_save.
-        my $vsumm = $obj->votesummary();
-        $vsumm->remove_vote( $obj ) if $vsumm->id;
-    }
+    my $plugin  = AjaxRating->plugin;
+    my $blog_id = $obj->blog_id;
+    my $config  = {
+        %{ $plugin->get_config_hash('system') || {} },
+        $blog_id ? %{ $plugin->get_config_hash("blog:$blog_id") || {} } : ()
+    };
 
+    return $obj->check_required_fields
+        && $obj->check_score_range( $config )
+        && $obj->check_object_type( $config )
+        && $obj->check_duplicate( $config )
+            || MT->instance->error( $obj->errstr );
     return 1;
 }
 
 sub post_save {
     my ( $cb, $obj, $obj_orig ) = @_;
 
-    # Update the Vote Summary. The summary is used because it will let
-    # publishing happen faster (loading one summary row to publish results
-    # is faster than loading many AjaxRating::Object::Vote records).
-    $obj->votesummary->add_vote( $obj );
-
-    # Now that the vote has been recorded, rebuild the required pages.
-    $obj->rebuild_vote_object();
-
-    return 1;
-}
-
-sub post_remove {
-    my ( $cb, $obj ) = @_;
-
-    my $vsumm = $obj->votesummary;
-    $vsumm->remove_vote( $obj ) if $vsumm->id;
-
-    # Now that the vote has been recorded, rebuild the required pages.
-    $obj->rebuild_vote_object();
-
-    return 1;
-}
-
-sub remove_filter {
-    my ( $cb, $app, $obj, $obj_orig ) = @_;
-
-    return $app->error( 'Invalid request, must use POST.')
-        if $app->can('request_method')
-            and $app->request_method() ne 'POST';
-
-    my $scope = 'blog:'.$app->param('blog_id');
-    my $config = $app->component('ajaxrating')->get_config_hash( $scope );
-    my $obj_type = $app->param('obj_type');
-    return $app->error( 'Invalid object type.')
-        if $config->{ratingl} and ! grep { $obj_type eq $_ } qw( entry blog );
-
-    if ( ! $app->user or $app->user->id != ($app->param('voter_id')||0) ) {
-        return $app->error(
-            'You do not have permission to remove this vote', 401 );
+    unless ( delete $obj->{__resave} ) {
+        # Update the Vote Summary and rebuild the required pages
+        $obj->votesummary->add_vote( $obj );
+        $obj->rebuild_vote_object();
     }
 }
 
-sub save_filter {
-    my ( $cb, $app, $obj, $obj_orig ) = @_;
+##################################
+######## CALLBACK HELPERS ########
+##################################
 
-    return $app->error( 'Invalid request, must use POST.')
-        if $app->can('request_method')
-            and $app->request_method() ne 'POST';
+sub check_required_fields {
+    my ( $obj )  = @_;
+    my @missing  = grep { ! $obj->$_ } $obj->required_fields;
+    return ! scalar( @missing )
+        || $obj->error( 'Vote not saved due to missing fields: '
+                      . join(', ', @missing) );
+}
 
-    # REQUIRED FIELDS
-    my @required     = qw( blog_id obj_type obj_id score );
-    ### TODO Decision: Should ratings of things which are not child objects of a blog be allowed? (i.e. no blog_id; e.g. authors)
+### FIXME Should there be a default max score? If so, why 10?
+### FIXME Should 0 or a negative score be allowed?
+###       If so, votesummary arithmetic should be validated throughout
+sub check_score_range {
+    my ( $obj, $config ) = @_;
+    my $type          = $obj->obj_type || '';
+    my %defs          = ( min => 0, max => 10 ); # DEFAULTS. See above comment
+    my ( $min, $max ) = map { $config->{"${type}_${_}_points"} || $defs{$_} }
+                           qw( min max );
+    return ( $obj->score <= $max ) && ( $obj->score >= $min )
+        || $obj->error( "Score must be between $min and $max, inclusive." )
+}
 
-    # MIN/MAX SCORE
-    my ( $min_score, $max_score ) = ( undef, 10 );
-    ### FIXME Why is 10 the max score? It's both arbitrary and limiting
-    ### FIXME Should negative votes be allowed?
-    ### If so, votesummary arithmetic should be validated throughout
-    my $plugin     = MT->instance->component('ajaxrating');
-    my $config     = $plugin->get_config_hash('blog:'.$obj->blog_id) || {};
-    my $check_ip
-        = $plugin->get_config_value('enable_ip_checking', 'system');
-    my $check_type = $config->{ratingl};
-
-    ### REQUIRED VALUES CHECK
-    if ( my @missing = grep { ! defined( $obj->$_ ) } @required ) {
-        return $app->error(
-            ref($obj) .' object save blocked for missing fields: '
-                      . join( ', ',@missing ) );
-    }
-
-    my $type = $obj->obj_type;
-    my %terms = %{ $obj->object_terms };
-
-    ### SCORE VALUE BOUNDARY CHECK
-    # Refuse votes that exceed the maximum number of scoring points.
-    my $max  = $config->{$type . "_max_points"} // $max_score;
-    my $min  = $config->{$type . "_min_points"} // $min_score;
-    return $app->error(
-            'Specified score exceeds the maximum for this item.' )
-        if defined $max and $obj->score > $max;
-    return $app->error(
-            'Specified score exceeds the minimum for this item.' )
-        if defined $min and $obj->score < $min;
-
-    ### VALID OBJECT TYPE CHECK
-    # Check that this vote's obj_type is valid for this blog
-    if ( $check_type ) {
-        return $app->error( 'Invalid object type specified: '.$type )
-            unless grep { $type eq $_ } qw( entry blog );
-    }
-
-    ### DUPLICATE VOTE CHECK - IP ADDRESS
-    # If IP address checking is enabled, return an error if we already have
-    # a vote from the current IP address (assuming that's defined)
-    $obj->ip( eval { MT->instance->remote_ip } ) unless $obj->ip;
-    if ( $check_ip && $obj->ip ) {
-        return $app->error(
-                'Your IP address has already voted on this item.')
-            if ref($obj)->exist({ %terms, ip => $obj->ip });
-    }
-
-    ### DUPLICATE VOTE CHECK - USER
-    # Return error if vote exists from current logged-in user, if exists
-    unless ( my $voter_id = $obj->voter_id ) {
-        # Determine the user's identity - First try commenter session
-        my ( $session, $voter ) = eval { $app->get_commenter_session };
-        # If not defined, fall back to MT user record
-        $voter //= eval { $app->user };
-        $obj->voter_id( $voter->id ) if $voter;
-    }
-
-    if ( $obj->voter_id ) {
-        return $app->error('You have already voted on '. $obj->obj_type. ' ID '.$obj->obj_id)
-            if ref($obj)->exist({ %terms, voter_id => $obj->voter_id });
-    }
-    else {
-        warn sprintf "No voter_id in %s record: %s",
-            ref($obj), $obj->to_hash();
-    }
-
+sub check_object_type {
+    my ( $obj, $config ) = @_;
+    my $type             = $obj->obj_type // 'UNDEFINED';
+    return $obj->error( 'Invalid object type specified: '.$type )
+        if $config->{ratingl} and ! grep { $type eq $_ } qw( entry blog );
     return 1;
+}
+
+sub check_duplicate {
+    my $obj = shift;
+    $obj->check_dupe_by_voter( @_ ) && $obj->check_dupe_by_ip( @_ );
+}
+
+### DUPLICATE VOTE CHECK - USER
+# Return error if vote exists from current logged-in user, if exists
+sub check_dupe_by_voter {
+    my $obj = shift;
+    my $id = $obj->voter_id
+        or return 1; # PASS if no voter_id to check
+    return ! ref($obj)->exist({ voter_id => $id, %{ $obj->object_terms } })
+        || $obj->error( 'You have already voted on '
+                        . $obj->obj_type. ' ID '.$obj->obj_id );
+}
+
+### OR DUPLICATE VOTE CHECK - IP ADDRESS
+# If the vote has an IP and IP address checking is enabled, return an error if
+# we already have a vote from that IP address. This check is only
+# performed if we do not have an active user (see check_dupe_by_voter)
+sub check_dupe_by_ip {
+    my ( $obj, $config ) = @_;
+    return 1 unless $obj->ip and $config->{enable_ip_checking};
+    return ! ref($obj)->exist({ %{ $obj->object_terms }, ip => $obj->ip })
+        || $obj->error( 'Your IP address has already voted on this item.');
 }
 
 sub rebuild_vote_object {
     my ( $self, $rebuild ) = @_;
-    my $app = MT->instance;
-
-    unless ( $rebuild ) {
-        my $plugin = MT->instance->component('ajaxrating');
-        my $config = $plugin->get_config_hash('blog:'.$self->blog_id);
-        $rebuild = $config->{rebuild} or return;
-    }
+    $rebuild ||= do {
+        AjaxRating->plugin->get_config_hash('blog:'.$self->blog_id)->{rebuild}
+    };
+    return 1 unless $rebuild;
 
     require MT::Util;
     MT::Util::start_background_task(sub {
+        my $app = MT->instance;
         my $entry;
         if ( grep { $self->obj_type eq $_ } qw( entry page topic ) ) {
             $entry = MT->model('entry')->load( $self->obj_id )
@@ -286,6 +252,7 @@ sub rebuild_vote_object {
         #     warn "Nothing found to rebuild after rating";
         # }
     });  ### end of background task
+    return 1;
 }
 
 1;

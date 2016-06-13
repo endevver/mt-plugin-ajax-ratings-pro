@@ -8,9 +8,9 @@ use Try::Tiny;
 use Carp            qw( carp croak );
 use Scalar::Util    qw( looks_like_number blessed );
 use List::MoreUtils qw( part first_value first_result );
+use AjaxRating::Util qw( reporter );
 
-use AjaxRating::Object;
-@AjaxRating::Object::VoteSummary::ISA = qw( AjaxRating::Object );
+use parent qw( AjaxRating::Object );
 
 __PACKAGE__->install_properties({
     column_defs => {
@@ -156,21 +156,24 @@ sub add_vote {
 
     try { $self->object_matches( $vote, { or_die => 1 } ) } catch { croak $_ };
 
-    if ( $self->id ) {
-        $self->modified_by( $vote->voter_id );
-    }
-    else {
-        if ( my $obj = $self->object() ) {
-            my $user_col = first_value { $obj->has_column($_) }
-                qw( author_id commenter_id );
-            $self->author_id( $obj->$user_col ) if $user_col;
+    $self->{__vote} = $vote;
+
+    unless ( $self->id ) {
+        if ( my $object = $self->object() ) {
+            my $user_col = first_value { $object->has_column($_) }
+                qw( author_id commenter_id created_by );
+            $self->author_id( $object->$user_col ) if $user_col;
         }
     }
+
     $self->adjust_for_vote({ score => $vote->score, add => 1 });
 }
 
+
 sub remove_vote {
     my ( $self, $vote ) = @_;
+
+    $self->{__vote} = $vote;
 
     try { $self->object_matches( $vote, { or_die => 1 } ) } catch { croak $_ };
 
@@ -229,20 +232,56 @@ sub compile_vote_dist {
         || YAML::Tiny->new;
 }
 
-# Remove this entry and all of its votes from the DB
-# NOTE: AjaxRating::Object::Vote::post_remove callbacks ARE NOT INVOKED.
-#       Only $AjaxRating::Object::Vote::pre_remove_multi will be invoked.
-sub purge {
-    my $self = shift;
-    MT->model('ajaxrating_vote')->remove( $self->object_terms );
-    $self->remove;
-}
-
 sub pre_save {
     my ( $cb, $obj, $obj_orig ) = @_;
     $obj->SUPER::pre_save(@_);
 }
 
+sub post_save {
+    # reporter(@_)
+}
+
+sub post_remove {
+    # reporter(@_)
+}
+
+
 1;
 
 __END__
+
+sub remove_scores {
+    my $class = shift;
+    require MT::ObjectScore;
+    my ( $terms, $args ) = @_;
+    $args = {%$args} if $args;    # copy so we can alter
+    my $offset = 0;
+    $args ||= {};
+    $args->{fetchonly} = ['id'];
+    $args->{join}      = [
+        'MT::ObjectScore', 'object_id',
+        { object_ds => $class->datasource }
+    ];
+    $args->{no_triggers} = 1;
+    $args->{limit}       = 50;
+
+    while ( $offset >= 0 ) {
+        $args->{offset} = $offset;
+        if ( my @list = $class->load( $terms, $args ) ) {
+            my @ids = map { $_->id } @list;
+            MT::ObjectScore->driver->direct_remove( 'MT::ObjectScore',
+                { object_ds => $class->datasource, 'object_id' => \@ids } );
+            if ( scalar @list == 50 ) {
+                $offset += 50;
+            }
+            else {
+                $offset = -1;    # break loop
+            }
+        }
+        else {
+            $offset = -1;
+        }
+    }
+    return 1;
+}
+

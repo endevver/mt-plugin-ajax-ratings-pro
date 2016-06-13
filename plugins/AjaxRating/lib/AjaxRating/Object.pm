@@ -6,11 +6,9 @@ package AjaxRating::Object {
     use Try::Tiny;
     use Carp            qw( croak );
     use List::MoreUtils qw( first_value );
+    use AjaxRating::Util qw( reporter );
 
-    use MT::Object;
-    @AjaxRating::Object::ISA = qw( MT::Object );
-
-    use AjaxRating::Util qw( sync_author_fields );
+    use parent qw( MT::Object );
 
     sub list_properties {
         require AjaxRating::CMS;
@@ -181,13 +179,21 @@ package AjaxRating::Object {
         $self->{__object} ||= $class->load( $self->obj_id ) if $self->obj_id;
     }
 
+    sub obj_type_proxy {
+        my $self = shift;
+        require AjaxRating::Types;
+        AjaxRating::Types->get_type( $self->obj_type )->datasource;
+    }
+
     sub object_class {
         my $self  = shift;
-        return if $self->{__no_object_class};
+        return '' if $self->{__no_object_class};
 
         unless ( $self->{__object_class} ) {
-            my $class = $self->{__object_class} = MT->model( $self->obj_type )
-                or $self->{__no_object_class} = 1;
+            if ( my $type = $self->obj_type_proxy ) {
+                $self->{__object_class} = MT->model( $type );
+            }
+            $self->{__no_object_class} = 1 unless $self->{__object_class};
         }
         $self->{__object_class};
     }
@@ -249,32 +255,292 @@ package AjaxRating::Object {
     sub pre_save {
         shift @_; # $obj repeated from
         my ( $cb, $obj, $obj_orig ) = @_;
-        my $app     = MT->instance;
+        # reporter(@_);
+
+        my $is_vote = $obj->has_column('voter_id') ? 1 : 0;
+        my $is_new  = ! ( $obj->{__resave} = $obj->id ? 1 : 0 );
+
+        my ( $modified_by, $created_by );
+        if ( $is_vote ) {
+            $modified_by = $obj->voter_id;
+            $created_by  = $obj->voter_id if $is_new;
+        }
+        else {
+            my $vote = $obj->{__vote} || $obj_orig->{__vote};
+            $modified_by = $vote->voter_id;
+            $created_by  = $obj->author_id if $is_new;
+        }
 
         require MT::Util;
-        my $ts      = MT::Util::epoch2ts( undef, time );
-        my $user_id = $app->can('user') && $app->user ? $app->user->id : undef;
+        my $ts       = MT::Util::epoch2ts( undef, time );
+        my $blog_id  = $obj->blog_id || try { $obj->object->blog_id };
+
         for ( $obj, $obj_orig ) {
-            $_->modified_on($ts);
-            $_->modified_by( $user_id );
+            $_->modified_on( $ts )          if $ts;
+            $_->modified_by( $modified_by ) if $modified_by;
+            $_->created_by( $created_by )   if $created_by;
+            $_->blog_id( $blog_id )         if $blog_id;
+        }
+        return 1;
+    }
+
+    # Remove the all AjaxRating records related to an object, usually in
+    # response to the object's deletion.  This can be called as either a class
+    # or object method.
+    #    my ( $Vote, $Summary, $Hot ) = map { MT->model($_) } qw(
+    #       ajaxrating_vote  ajaxrating_votesummary ajaxrating_hotobject
+    #    );
+    #    $Vote->purge   ( { obj_type => ..., obj_id => ... } );
+    #    $Summary->purge( { obj_type => ..., obj_id => ... } );
+    #    $Hot->purge    ( { obj_type => ..., obj_id => ... } );
+    #
+    # The object method takes its arguments from object_terms():
+    #
+    #    $vote->purge();
+    #    $summary->purge();
+    #    $hot->purge();
+    #
+    # NOTE: AjaxRating::Object::Vote::post_remove callbacks ARE NOT INVOKED.
+    #       Only $AjaxRating::Object::Vote::pre_remove_multi will be invoked.
+    sub purge {
+        my $self  = shift;
+        my $terms = shift;
+
+        if ( ref($terms) eq 'HASH' ) {
+            # Restrict terms to obj_id and obj_type
+            $terms = { map { $terms->{$_} || '' } qw( obj_id obj_type ) };
+        }
+        elsif ( blessed( $self ) ) {
+            $terms = $self->object_terms;
+        }
+        else {
+            return $self->error('Class method purge requires hashref argument');
         }
 
-        my $blog_id = $obj->blog_id
-                   || try { $obj->object->blog_id }
-                   || try { $app->blog->id };
-
-        if ( $blog_id ) {
-            $obj->blog_id( $blog_id );
-            $obj_orig->blog_id( $blog_id );
+        foreach my $key (qw( obj_type obj_id )) {
+            next if $terms->{$key};
+            return $self->error(  "Invalid $key specified: "
+                                . ($terms->{$key}//'UNDEFINED') );
         }
 
-        # Sync author_id/voter_id and created_by, preferring the former
-        sync_author_fields( $obj, $obj_orig,
-            ( first_value { $obj->has_column($_) } qw( author_id voter_id ) ),
-            'created_by'
+        my @types
+            = qw( ajaxrating_vote ajaxrating_votesummary ajaxrating_hotobject );
+        foreach my $type ( @types ) {
+            MT->model($type)->remove( $terms, { nofetch => 1 } );
+        }
+
+        my $Log = MT->model('log');
+        my $msg = sprintf( 'AjaxRatings removed for %s ID %s',
+                            map { $terms->{$_} } qw( obj_type obj_id ) );
+        MT->instance->log(
+            level    => $Log->INFO(),
+            message  => $msg,
         );
     }
 }
+
+1;
+
+__END__
+
+Class->remove({}) does:
+    MT->run_callbacks( $obj . '::pre_remove_multi', @args );
+    return $obj->driver->direct_remove( $obj, @args );
+
+Class->remove({}, { nofetch => 1 })
+    does $driver->direct_remove($orig_obj, @_)
+
+    sub remove_scores {
+        my $class = shift;
+        require MT::ObjectScore;
+        my ( $terms, $args ) = @_;
+        $args = {%$args} if $args;    # copy so we can alter
+        my $offset = 0;
+        $args ||= {};
+        $args->{fetchonly} = ['id'];
+        $args->{join}      = [
+            'MT::ObjectScore', 'object_id',
+            { object_ds => $class->datasource }
+        ];
+        $args->{no_triggers} = 1;
+        $args->{limit}       = 50;
+
+        while ( $offset >= 0 ) {
+            $args->{offset} = $offset;
+            if ( my @list = $class->load( $terms, $args ) ) {
+                my @ids = map { $_->id } @list;
+                MT::ObjectScore->driver->direct_remove( 'MT::ObjectScore',
+                    { object_ds => $class->datasource, 'object_id' => \@ids } );
+                if ( scalar @list == 50 ) {
+                    $offset += 50;
+                }
+                else {
+                    $offset = -1;    # break loop
+                }
+            }
+            else {
+                $offset = -1;
+            }
+        }
+        return 1;
+    }
+
+
+
+package Data::ObjectDriver::Driver::DBI;
+
+
+sub remove {
+    my $driver = shift;
+    my $orig_obj = shift;
+
+    ## If remove() is called on class method and we have 'nofetch'
+    ## option, we remove the record using $term and won't create
+    ## $object. This is for efficiency and PK-less tables
+    ## Note: In this case, triggers won't be fired
+    ## Otherwise, Class->remove is a shortcut for search+remove
+    unless (ref($orig_obj)) {
+        if ($_[1] && $_[1]->{nofetch}) {
+            return $driver->direct_remove($orig_obj, @_);
+        } else {
+            my $result = 0;
+            my @obj = $driver->search($orig_obj, @_);
+            for my $obj (@obj) {
+                my $res = $obj->remove(@_) || 0;
+                $result += $res;
+            }
+            return $result || 0E0;
+        }
+    }
+
+    return unless $orig_obj->has_primary_key;
+
+    if ($Data::ObjectDriver::RESTRICT_IO) {
+        die "Attempted DBI I/O while in restricted mode: remove()";
+    }
+
+    ## Use a duplicate so the pre_save trigger can modify it.
+    my $obj = $orig_obj->clone_all;
+    $obj->call_trigger('pre_remove', $orig_obj);
+
+    my $tbl = $driver->table_for($obj);
+    my $sql = "DELETE FROM $tbl\n";
+    my $stmt = $driver->prepare_statement(ref($obj), $obj->primary_key_to_terms);
+    $sql .= $stmt->as_sql_where;
+    my $dbh = $driver->rw_handle($obj->properties->{db});
+    $driver->start_query($sql, $stmt->{bind});
+    my $sth = $driver->_prepare_cached($dbh, $sql);
+    my $result = $sth->execute(@{ $stmt->{bind} });
+    _close_sth($sth);
+    $driver->end_query($sth);
+
+    $obj->call_trigger('post_remove', $orig_obj);
+
+    $orig_obj->{__is_stored} = 1;
+    return $result;
+}
+
+sub direct_remove {
+    my $driver = shift;
+    my($class, $orig_terms, $orig_args) = @_;
+
+    if ($Data::ObjectDriver::RESTRICT_IO) {
+        die "Attempted DBI I/O while in restricted mode: direct_remove() " . Dumper($orig_terms, $orig_args);
+    }
+
+    ## Use (shallow) duplicates so the pre_search trigger can modify them.
+    my $terms = defined $orig_terms ? { %$orig_terms } : {};
+    my $args  = defined $orig_args  ? { %$orig_args  } : {};
+    $class->call_trigger('pre_search', $terms, $args);
+
+    my $stmt = $driver->prepare_statement($class, $terms, $args);
+    my $tbl  = $driver->table_for($class);
+    my $sql  = "DELETE from $tbl\n";
+       $sql .= $stmt->as_sql_where;
+
+    # not all DBD drivers can do this.  check.  better to die than do
+    # unbounded DELETE when they requested a limit.
+    if ($stmt->limit) {
+        Carp::croak("Driver doesn't support DELETE with LIMIT")
+            unless $driver->dbd->can_delete_with_limit;
+        $sql .= $stmt->as_limit;
+    }
+
+    my $dbh = $driver->rw_handle($class->properties->{db});
+    $driver->start_query($sql, $stmt->{bind});
+    my $sth = $driver->_prepare_cached($dbh, $sql);
+    my $result = $sth->execute(@{ $stmt->{bind} });
+    _close_sth($sth);
+    $driver->end_query($sth);
+    return $result;
+}
+
+
+package MT::Object::BaseObject;
+
+sub direct_remove {
+    my $driver = shift;
+    my ( $class, $orig_terms, $orig_args ) = @_;
+    $class->call_trigger( 'pre_direct_remove', $orig_terms, $orig_args );
+    $driver->SUPER::direct_remove(@_);
+}
+
+
+package MT::Object;
+
+sub remove {
+    my $obj = shift;
+    my (@args) = @_;
+    if ( !ref $obj ) {
+        for my $which (qw( meta summary )) {
+            my $meth = "remove_$which";
+            my $has  = "has_$which";
+            $obj->$meth(@args) if $obj->$has;
+        }
+        $obj->remove_scores(@args) if $obj->isa('MT::Scorable');
+        MT->run_callbacks( $obj . '::pre_remove_multi', @args );
+        return $obj->driver->direct_remove( $obj, @args );
+    }
+    else {
+        return $obj->driver->remove( $obj, @args );
+    }
+}
+
+sub remove_ratings {
+    my $class = shift;
+    require MT::ObjectScore;
+    my ( $terms, $args ) = @_;
+    $args = {%$args} if $args;    # copy so we can alter
+    my $offset = 0;
+    $args ||= {};
+    $args->{fetchonly} = ['id'];
+    $args->{join}      = [
+        'MT::ObjectScore', 'object_id',
+        { object_ds => $class->datasource }
+    ];
+    $args->{no_triggers} = 1;
+    $args->{limit}       = 50;
+
+    while ( $offset >= 0 ) {
+        $args->{offset} = $offset;
+        if ( my @list = $class->load( $terms, $args ) ) {
+            my @ids = map { $_->id } @list;
+            MT::ObjectScore->driver->direct_remove( 'MT::ObjectScore',
+                { object_ds => $class->datasource, 'object_id' => \@ids } );
+            if ( scalar @list == 50 ) {
+                $offset += 50;
+            }
+            else {
+                $offset = -1;    # break loop
+            }
+        }
+        else {
+            $offset = -1;
+        }
+    }
+    return 1;
+}
+
 
 1;
 

@@ -279,4 +279,131 @@ sub system_filters {
     return $system_filters;
 }
 
+# return $app->permission_denied()
+#     unless $app->run_callbacks(
+#     'cms_save_permission_filter.' . $t,
+#     $app, $id, $vote );
+# For the AddVote app, $id will be undef and $obj will be the vote $obj
+sub can_save_vote {
+    my ( $cb, $app, $id, $obj, $original ) = @_; # $original is Data API only
+
+    check_request_method( $app ) or return;
+
+    return 1;
+}
+
+# cms_save_filter.ajaxrating_vote
+sub save_filter_vote {
+    my ( $cb, $app, $obj, $orig ) = @_;  # $original is Data API only
+    return 1;
+}
+
+# $app->run_callbacks( 'cms_pre_save.ajaxrating_vote', $app, $obj, $orig_obj )
+sub pre_save_vote {
+    my ( $cb, $app, $obj, $orig_obj ) = @_;
+
+    # If this is a new vote, fill in defaults from app if possible
+    unless ( $obj->id ) {
+        # Use try() in case app doesn't have the necessary methods (e.g. MT)
+
+        $obj->ip( $obj->ip || try { $app->remote_ip } );
+
+        ### FIXME Need to get it directly from the app somewhere. Here?
+        $obj->voter_id(   $obj->voter_id
+                       || try { ($app->get_commenter_session)[1]->id }
+                       || try { $app->user->id }        );
+
+        $obj->blog_id(    $obj->blog_id
+                       || try { $obj->object->blog_id }
+                       || try { $app->blog->id }
+                       || try {   $app->param('blog_id')
+                               || $app->param('site_id') }  );
+    }
+
+    return 1;
+}
+
+# $app->run_callbacks( 'cms_post_save.ajaxrating_vote', $app, $obj, $orig_obj );
+sub post_save_vote {
+    my ( $cb, $app, $obj, $orig_obj ) = @_;
+
+    # return ignored
+}
+
+# $app->run_callbacks(
+#     'cms_post_bulk_save.ajaxrating_vote',
+#     $app, \@objects );
+sub post_bulk_save_votes {
+    my ( $cb, $app, $objects ) = @_;
+
+    # return ignored
+}
+
+# return $app->permission_denied()
+#     unless $app->run_callbacks(
+#     'cms_view_permission_filter.ajaxrating_vote',
+#     $app, $id, $obj_promise );
+sub can_view_vote {
+    my ( $cb, $app, $id, $obj ) = @_;
+    return 1;
+}
+
+# MT->run_callbacks( 'cms_pre_load_filtered_list.ajaxrating_vote',
+#     $app, $filter, \%count_options, \@cols );
+sub pre_load_filtered_list_vote {
+    my ( $cb, $app, $filter, $options, $cols ) = @_;
+}
+
+# MT->run_callbacks( 'cms_filtered_list_param.ajaxrating_vote', $app, \%res, $objs );
+sub filtered_list_param_vote {
+    my ( $cb, $app, $res, $objs ) = @_;
+    # return ignored
+}
+
+# $app->run_callbacks( 'cms_delete_permission_filter.ajaxrating_vote',
+#     $app, $id, $vote )
+#     || return $app->permission_denied();
+# For the AddVote app, $id will be undef and $obj will be the vote $obj
+sub can_delete_vote {
+    my ( $cb, $app, $id, $obj ) = @_;
+
+    check_request_method( $app ) or return;
+
+    # CHECK OBJECT TYPE IF CONFIGURED TO DO SO
+    my $scope    = 'blog:'.$app->param('blog_id');
+    my $config   = AjaxRating->plugin->get_config_hash( $scope );
+    my $obj_type = $app->param('obj_type');
+    ### FIXME Should be able to use check_object_type here
+    return $app->error( 'Invalid object type.')
+        if $config->{ratingl} and ! grep { $obj_type eq $_ } qw( entry blog );
+
+    ### ONLY VOTER OR SYSADMIN CAN REMOVE VOTE
+    my $user = try { $app->user } catch { MT->model('user')->anonymous };
+    unless ( $user->is_superuser ) {
+        if (   $user->is_anonymous
+            || $user->id != ( $app->param('voter_id') || 0 )) {
+            return $app->error(
+                'You do not have permission to remove this vote', 401 );
+        }
+    }
+    return 1;
+}
+
+
+# $app->run_callbacks( 'cms_post_delete.' . $type, $app, $obj );
+sub post_delete_vote {
+    my ( $cb, $app, $obj ) = @_;
+    # return ignored
+}
+
+sub check_request_method {
+    my ( $app ) = @_;
+    my $method = try { $app->request_method() } or return 1;
+    return $method eq 'POST'
+        || $app->error( 'Invalid request, must use POST.');
+}
+
+
 1;
+
+__END__

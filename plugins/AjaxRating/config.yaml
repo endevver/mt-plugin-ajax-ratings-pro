@@ -9,20 +9,12 @@ author_link: http://mt-hacks.com/
 version:     1.5.3
 schema_version: 5
 
+init_app: $AjaxRating::AjaxRating::init_app
+
 object_types:
-    # ar_vote:      AjaxRating::Object::Vote
-    # ar_votesumm:  AjaxRating::Object::VoteSummary
-    # ar_hotobj:    AjaxRating::Object::HotObject
-    # The above should be changed back to the following
-    # and you should continue to refer to these models
-    # with their longer names.  The shorter datasource
-    # in the class should handle the database...
     ajaxrating_vote:        AjaxRating::Object::Vote
     ajaxrating_votesummary: AjaxRating::Object::VoteSummary
     ajaxrating_hotobject:   AjaxRating::Object::HotObject
-
-
-init_app: AjaxRating::Upgrade::PLtoYAML::run
 
 upgrade_functions:
     ar_abbrev_tables:
@@ -46,11 +38,23 @@ upgrade_functions:
 
 
 callbacks:
-    ### OBJECT-LEVEL SAVE/REMOVE CALLBACKS
+    ### AJAXRATING OBJECT CALLBACKS
     AjaxRating::Object::VoteSummary::pre_save:
         handler: $AjaxRating::AjaxRating::Object::VoteSummary::pre_save
+    AjaxRating::Object::VoteSummary::post_save:
+        handler: $AjaxRating::AjaxRating::Object::VoteSummary::post_save
+    AjaxRating::Object::VoteSummary::post_remove:
+        handler: $AjaxRating::AjaxRating::Object::VoteSummary::post_remove
+
     AjaxRating::Object::HotObject::pre_save:
         handler: $AjaxRating::AjaxRating::Object::HotObject::pre_save
+    AjaxRating::Object::HotObject::post_save:
+        handler: $AjaxRating::AjaxRating::Object::HotObject::post_save
+    AjaxRating::Object::HotObject::post_remove:
+        handler: $AjaxRating::AjaxRating::Object::HotObject::post_remove
+
+    AjaxRating::Object::Vote::save_filter:
+        handler: $AjaxRating::AjaxRating::Object::Vote::save_filter
     AjaxRating::Object::Vote::pre_save:
         handler: $AjaxRating::AjaxRating::Object::Vote::pre_save
     AjaxRating::Object::Vote::post_save:
@@ -58,37 +62,35 @@ callbacks:
     AjaxRating::Object::Vote::post_remove:
         handler: $AjaxRating::AjaxRating::Object::Vote::post_remove
 
-    ### VOTE DELETE FILTERS
-    data_api_delete_permission_filter.ajaxrating_vote:
-        handler: $AjaxRating::AjaxRating::Object::Vote::remove_filter
-    api_delete_permission_filter.ajaxrating_vote:
-        handler: $AjaxRating::AjaxRating::Object::Vote::remove_filter
-    cms_delete_permission_filter.ajaxrating_vote:
-        handler: $AjaxRating::AjaxRating::Object::Vote::remove_filter
-
-    ### VOTE SAVE FILTERS
-    data_api_save_filter.ajaxrating_vote:
-        handler:    $AjaxRating::AjaxRating::Object::Vote::save_filter
-    api_save_filter.ajaxrating_vote:
-        handler:    $AjaxRating::AjaxRating::Object::Vote::save_filter
-    cms_save_filter.ajaxrating_vote:
-        handler:    $AjaxRating::AjaxRating::Object::Vote::save_filter
 
     ### OTHER OBJECT CALLBACKS
-    MT::Entry::pre_remove:    $AjaxRating::AjaxRating::entry_delete_handler
-    MT::Comment::pre_remove:  $AjaxRating::AjaxRating::comment_delete_handler
-    MT::TBPing::pre_remove:   $AjaxRating::AjaxRating::trackback_delete_handler
-    MT::Category::pre_remove: $AjaxRating::AjaxRating::category_delete_handler
-    MT::Blog::pre_remove:     $AjaxRating::AjaxRating::blog_delete_handler
-    MT::Author::pre_remove:   $AjaxRating::AjaxRating::author_delete_handler
-    MT::Tag::pre_remove:      $AjaxRating::AjaxRating::tag_delete_handler
-    MT::Entry::post_save:     $AjaxRating::AjaxRating::entry_post_save
-    MT::Comment::post_save:   $AjaxRating::AjaxRating::comment_post_save
-    MT::TBPing::post_save:    $AjaxRating::AjaxRating::tbping_post_save
+    ### We define the following standard object callbacks as well as any
+    ### other needed object types in AjaxRating::init_app
     commenter_session_state:  $AjaxRating::AjaxRating::session_state
 
 applications:
     cms:
+        callbacks:
+            cms_save_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::can_save_vote
+            cms_save_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::save_filter_vote
+            cms_pre_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::pre_save_vote
+            cms_post_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::post_save_vote
+            cms_post_bulk_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::post_bulk_save_votes
+            cms_view_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::can_view_vote
+            cms_pre_load_filtered_list.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::pre_load_filtered_list_vote
+            cms_filtered_list_param.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::filtered_list_param_vote
+            cms_delete_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::can_delete_vote
+            cms_post_delete.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::post_delete_vote
         methods:
             ajaxrating_install_templates: AjaxRating::install_templates
         menus:
@@ -116,23 +118,38 @@ applications:
                     - website
                     - blog
     data_api:
+        callbacks:
+            data_api_save_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::save_filter
+            data_api_save_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::can_save
+            data_api_pre_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::pre_save
+            data_api_post_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::post_save
+            data_api_list_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::can_view
+            data_api_pre_load_filtered_list.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::pre_load_filtered_list
+            data_api_delete_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::can_delete
+            data_api_post_delete.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::post_delete
         resources:
-            entry:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::object_summary
-            comment:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::object_summary
+            DEFAULT:
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Foreign::fields
             ajaxrating_vote:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::vote_fields
+                fields: $AjaxRating::AjaxRating::DataAPI::Resources::Vote::fields
             ajaxrating_votesummary:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::votesummary_fields
+                fields: $AjaxRating::AjaxRating::DataAPI::Resources::VoteSummary::fields
             ajaxrating_hotobject:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::hotobject_fields
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::HotObject::fields
             ar_vote:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::vote_fields
+                fields: $AjaxRating::AjaxRating::DataAPI::Resources::Vote::fields
             ar_votesumm:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::votesummary_fields
-            ar_hotobject:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::hotobject_fields
+                fields: $AjaxRating::AjaxRating::DataAPI::Resources::VoteSummary::fields
+            ar_hotobj:
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::HotObject::fields
 
         endpoints:
             ################# >>################################################
@@ -144,10 +161,10 @@ applications:
             ###     (aka "rating(s)")
             ###
             -
-                id:                     ar_fetch_summary
+                id:                     ar_object_fetch_summary
                 verb:                   GET
                 route:                  /ar/:obj_type/:obj_ids
-                handler:                $AjaxRating::AjaxRating::DataAPI::fetch_summary
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::VoteSummary::fetch
                 requires_login:         0
                 version:                1
                 default_params:
@@ -161,10 +178,10 @@ applications:
             ### Get a listing of votes on object(s):
             ###
             -
-                id:                     ar_list_votes
+                id:                     ar_object_list_votes
                 verb:                   GET
                 route:                  /ar/:obj_type/:obj_ids/list
-                handler:                $AjaxRating::AjaxRating::DataAPI::list_votes
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::list
                 requires_login:         0
                 version:                1
                 default_params:
@@ -179,10 +196,10 @@ applications:
             ###     Requires payload of { "score": N }
             ###
             -
-                id:                     ar_add_vote
+                id:                     ar_object_add_vote
                 verb:                   POST
                 route:                  /ar/:obj_type/:obj_id/vote
-                handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::add
                 requires_login:         1
                 version:                1
                 default_params:
@@ -194,10 +211,10 @@ applications:
             ### Fetch your previously submitted vote(s)
             ###
             -
-                id:                     ar_fetch_vote
+                id:                     ar_object_fetch_vote
                 verb:                   GET
                 route:                  /ar/:obj_type/:obj_ids/vote
-                handler:                $AjaxRating::AjaxRating::DataAPI::fetch_vote
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::fetch
                 requires_login:         1
                 version:                1
                 default_params:
@@ -211,10 +228,10 @@ applications:
             ### Remove your previously submitted vote(s)
             ###
             -
-                id:                     ar_remove_object_vote
+                id:                     ar_object_remove_vote
                 verb:                   DELETE
                 route:                  /ar/:obj_type/:obj_ids/vote
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::remove
                 requires_login:         1
                 version:                1
                 default_params:
@@ -229,7 +246,7 @@ applications:
                 id:                     ar_get_vote_by_id
                 verb:                   GET
                 route:                  /ar/votes/:vote_ids
-                handler:                $AjaxRating::AjaxRating::DataAPI::fetch_vote_by_id
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::fetch_by_id
                 requires_login:         1
                 version:                1
                 default_params:
@@ -246,7 +263,7 @@ applications:
                 id:                     ar_remove_vote_by_id
                 verb:                   DELETE
                 route:                  /ar/votes/:vote_ids
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote_by_id
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::remove_by_id
                 requires_login:         1
                 version:                1
                 default_params:
@@ -368,7 +385,7 @@ list_properties:
     ajaxrating_votesummary: $AjaxRating::AjaxRating::Object::VoteSummary::list_properties
     ar_votesumm:            $AjaxRating::AjaxRating::Object::VoteSummary::list_properties
     ajaxrating_hotobject:   $AjaxRating::AjaxRating::Object::HotObject::list_properties
-    ar_hotobject:           $AjaxRating::AjaxRating::Object::HotObject::list_properties
+    ar_hotobj:              $AjaxRating::AjaxRating::Object::HotObject::list_properties
 
 system_filters:
     # Note that the same filters are being used for the Vote and Summary records
