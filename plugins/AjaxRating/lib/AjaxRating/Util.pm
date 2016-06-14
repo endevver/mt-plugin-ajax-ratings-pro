@@ -39,7 +39,7 @@ package AjaxRating::Util {
         my $author_id;
         unless ( $author_id = first_value { $_ } map { $obj->$_ } @fields ) {
             my $app = MT->instance;
-            my $meth   = $app->can('user');
+            my $meth   = $app->can('user') or return;
             my $user   = $meth->($app)  or return;
             $author_id = $user->id      or return;
         }
