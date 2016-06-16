@@ -38,6 +38,8 @@ upgrade_functions:
 
 
 callbacks:
+    post_init: $AjaxRating::AjaxRating::post_init
+
     ### AJAXRATING OBJECT CALLBACKS
     AjaxRating::Object::VoteSummary::pre_save:
         handler: $AjaxRating::AjaxRating::Object::VoteSummary::pre_save
@@ -137,18 +139,28 @@ applications:
                 handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::post_delete
         resources:
             DEFAULT:
+                version: 1
                 fields: $AjaxRating::AjaxRating::DataAPI::Resource::Foreign::fields
+            blog:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Blog::fields
             ajaxrating_vote:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::Vote::fields
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Vote::fields
             ajaxrating_votesummary:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::VoteSummary::fields
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::VoteSummary::fields
             ajaxrating_hotobject:
+                version: 1
                 fields: $AjaxRating::AjaxRating::DataAPI::Resource::HotObject::fields
             ar_vote:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::Vote::fields
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Vote::fields
             ar_votesumm:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::VoteSummary::fields
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::VoteSummary::fields
             ar_hotobj:
+                version: 1
                 fields: $AjaxRating::AjaxRating::DataAPI::Resource::HotObject::fields
 
         endpoints:

@@ -3,6 +3,7 @@ package AjaxRating::CMS;
 use strict;
 use warnings;
 use 5.0101;  # Perl v5.10.1 minimum
+use Try::Tiny;
 
 # From the Vote Activity Log (listing framework), delete a vote or votes.
 sub vote_delete {
@@ -367,21 +368,28 @@ sub filtered_list_param_vote {
 sub can_delete_vote {
     my ( $cb, $app, $id, $obj ) = @_;
 
-    check_request_method( $app ) or return;
+    require Scalar::Util;
+    if ( Scalar::Util::blessed($id) ) {
+        $obj = $id;
+        $id  = $obj->id
+    }
+
+    check_request_method( $app, 'DELETE' ) or return;
 
     # CHECK OBJECT TYPE IF CONFIGURED TO DO SO
-    my $scope    = 'blog:'.$app->param('blog_id');
-    my $config   = AjaxRating->plugin->get_config_hash( $scope );
-    my $obj_type = $app->param('obj_type');
-    ### FIXME Should be able to use check_object_type here
-    return $app->error( 'Invalid object type.')
-        if $config->{ratingl} and ! grep { $obj_type eq $_ } qw( entry blog );
+    # my $scope    = 'blog:'.$app->param('blog_id');
+    # my $config   = AjaxRating->plugin->get_config_hash( $scope );
+    # my $obj_type = $app->param('obj_type');
+    # ### FIXME Should be able to use check_object_type here
+    # return $app->error( 'Invalid object type.')
+    #     if $config->{ratingl} and ! grep { $obj_type eq $_ } qw( entry blog );
 
     ### ONLY VOTER OR SYSADMIN CAN REMOVE VOTE
     my $user = try { $app->user } catch { MT->model('user')->anonymous };
+
     unless ( $user->is_superuser ) {
         if (   $user->is_anonymous
-            || $user->id != ( $app->param('voter_id') || 0 )) {
+            or $user->id != ( $obj->voter_id || 0 )) {
             return $app->error(
                 'You do not have permission to remove this vote', 401 );
         }
@@ -397,10 +405,11 @@ sub post_delete_vote {
 }
 
 sub check_request_method {
-    my ( $app ) = @_;
+    my ( $app, $required ) = @_;
+    $required ||= 'POST';
     my $method = try { $app->request_method() } or return 1;
-    return $method eq 'POST'
-        || $app->error( 'Invalid request, must use POST.');
+    return $method eq $required
+        || $app->error( 'Invalid request, must use '.$required );
 }
 
 

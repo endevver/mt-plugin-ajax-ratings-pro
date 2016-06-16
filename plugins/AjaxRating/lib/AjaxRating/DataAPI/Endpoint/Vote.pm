@@ -42,9 +42,10 @@ package AjaxRating::DataAPI::Endpoint::Vote {
 
     sub fetch {
         my ( $app, $endpoint ) = @_;
-        my ( $terms, $args, $options )
-            = setup_request( $app, $endpoint, 'voter_id' )
-                or return;
+        my ( $terms, $args, $options ) = setup_request( $app, $endpoint )
+            or return;
+
+        $terms->{voter_id} = try { $app->user->id } or return $app->error(401);
 
         my $type = 'ajaxrating_vote';
         my $Vote = MT->model( $type );
@@ -84,8 +85,10 @@ package AjaxRating::DataAPI::Endpoint::Vote {
 
     sub remove {
         my ( $app, $endpoint ) = @_;
-        my ( $terms, $args, $options )
-            = setup_request( $app, $endpoint, 'voter_id' ) or return;
+        my ( $terms, $args, $options ) = setup_request( $app, $endpoint )
+            or return;
+
+        $terms->{voter_id} = try { $app->user->id } or return $app->error(401);
 
         my $vote = MT->model( 'ajaxrating_vote' )->load( $terms, $args )
             or return $app->error( 'Vote not found', 404 );

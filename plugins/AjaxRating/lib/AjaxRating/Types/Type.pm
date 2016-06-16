@@ -4,10 +4,11 @@ use 5.010;
 use Moo;
 use strictures 2;
 use Carp qw( croak );
+use List::MoreUtils qw( first_result );
 use AjaxRating::Util qw( get_config pluralize_type );
 use MT;
 
-use constant DEBUG => 1;
+### TODO Need to implement a property that specifies whether a blog_id is required for the type
 
 has 'obj_type' => (
     is       => 'ro',
@@ -69,7 +70,8 @@ sub _build_obj_type_plural {
 
 sub _build_datasource {
     my $self = shift;
-    MT->model( $self->obj_type ) ? $self->obj_type : '';
+    my $model = MT->model( $self->obj_type ) or return '';
+    $model->datasource;
 }
 
 sub _build_resources {
@@ -82,9 +84,16 @@ sub _build_resources {
 
 sub _build_pre_remove {
     my $self  = shift;
-    my $ds    = $self->datasource or return; # Skip fake obj_type w/ no ds
-    my $model = MT->model( $ds )  or return; # Skip if type isn't a model
     my $type  = $self->obj_type;
+    my $ds    = $self->datasource or return; # Skip fake obj_type w/ no ds
+
+    # Only create pre_remove callback for primary type because in
+    # delete_handler we handle all types which share the same datasource
+    return unless $type eq $ds;
+
+    my $model = first_result { MT->model($_) } $type, $ds;
+    return unless $model;
+
     my $meth  = "${type}_delete_handler";
     return if $self->can( $meth );          # Skip already-defined handlers
 
@@ -93,22 +102,23 @@ sub _build_pre_remove {
         name     => "$model\::pre_remove",
         meth     => ref($self)."::$meth",
         handler  => $handler,
-        code     => sub { delete_handler( @_, $ds ) },
+        code     => sub { $self->delete_handler( @_, $ds ) },
     }
 }
 
 sub _build_post_save {
-    my $self    = shift;
-    my $ds      = $self->datasource;
-    return unless $ds =~ m/^(entry|comment|ping|trackback)$/;
+    my $self  = shift;
+    my $type  = $self->obj_type;
+    my $ds    = $self->datasource or return;  # Skip fake obj_type w/ no ds
+    my $model = first_result { MT->model($_) } $type, $ds;
+    return unless $model and $type =~ m/^(entry|comment|ping|trackback)$/;
 
-    my $model   = MT->model($ds);
-    my $meth    = "${ds}_post_save";
+    my $meth    = "${type}_post_save";
     my $handler = join( '::', '$AjaxRating', ref($self), $meth );
     my $code    = sub {
-        my $hidden = $ds eq 'entry' ? ( $_[1]->status != 2 )
-                                    : ( ! $_[1]->visible   );
-        $self->touch_summary( @_, $hidden ? "${ds}0" : $ds );
+        my $hidden = $ds eq 'entry' ? ( $_[1]->status == $_[1]->RELEASE )
+                                    : ( $_[1]->visible ? 0 : 1 );
+        $self->touch_summary( @_, $hidden ? "${type}0" : $type );
     }; ### TODO TEST! I reversed the visible conditional above; it looked wrong
 
     return +{
@@ -120,21 +130,23 @@ sub _build_post_save {
 }
 
 sub delete_handler {
-    my ( $cb, $obj, $type ) = @_;
+    my ( $self, $cb, $obj, $ds_type ) = @_;
 
-    ### FIXME Need to overload this class to produce the type in string context
-    my @types   = grep { $_->ds eq $type } AjaxRating->rateable_object_types
+    # Find all obj_types which share this object's DB table so that we can make
+    # sure to remove all AR records of the item (e.g. page ID 1 is the same
+    # record as entry ID 1)
+    my $rateable = AjaxRating::Types->instance->initialized_types;
+    my @types   = grep { $rateable->{$_}->ds eq $ds_type } keys %$rateable
         or return;
 
+    # Create value for obj_type term. Will be either a
+    # string or an arrayref of strings
     my $types   = @types > 1 ? \@types : $types[0];
-    my @classes = qw(
-        ajaxrating_vote
-        ajaxrating_votesummary
-        ajaxrating_hotobjects
-    );
 
-    foreach my $class ( @classes ) {
-        MT->model($class)->remove(
+    # Remove records from all three tables matching obj_id and obj_type(s)
+    my @ar_types = qw( vote votesummary hotobjects );
+    foreach my $ar_class ( map { "ajaxrating_$_" } @ar_types ) {
+        MT->model($ar_class)->remove(
             { 'obj_type' => $types, 'obj_id' => $obj->id, },
             { nofetch => 1 }
             # nofetch is faster because it skips search/load before removing.
@@ -164,49 +176,39 @@ sub touch_summary {
     }
 }
 
-sub enable {
-    my ( $self, $scope ) = @_;
-    ...
- }
-
-sub disable {
-    my ( $self, $scope ) = @_;
-    ...
-}
-
-# The object_type proxy is used for rating MT objects using alternate obj_type
-# values.  For example, if you wanted to rate an entry on multiple facets. The
-# default rating with the obj_type value 'entry' might mean "Like" but you
-# could also rate the it on clarity and usefulness.  In these cases, the
-# obj_type values might be "clarity" and "useful" with the obj_id value of the
-# entry ID.  But since you can't look the entry up using those obj_type values,
-# you could set the type_proxy value to 'entry' so it can be retrieved.
-sub object_type_proxy {
-    my ( $class, $type ) = @_;
-    return unless $type;
-
-    require MT;
-    my $mt = MT->instance;
-
-    my ( $mt_type, $model );
-    if ( $model = $mt->model( $type ) ) {
-        $mt_type = $type;
-    }
-    else {
-        my $type_cfg = $class->rateable_object_types;
-        $type        = $type_cfg->{$type}{type_proxy} if $type_cfg->{$type};
-        if ( $type ) {
-            $model = $mt->model( $type );
-            $mt_type = $type if $model;
-        }
-    }
-    return wantarray ? ( $mt_type, $model ) : $mt_type;
-
-}
-
 1;
 
 __END__
+
+# # The object_type proxy is used for rating MT objects using alternate obj_type
+# # values.  For example, if you wanted to rate an entry on multiple facets. The
+# # default rating with the obj_type value 'entry' might mean "Like" but you
+# # could also rate the it on clarity and usefulness.  In these cases, the
+# # obj_type values might be "clarity" and "useful" with the obj_id value of the
+# # entry ID.  But since you can't look the entry up using those obj_type values,
+# # you could set the type_proxy value to 'entry' so it can be retrieved.
+# sub object_type_proxy {
+#     my ( $class, $type ) = @_;
+#     return unless $type;
+#
+#     require MT;
+#     my $mt = MT->instance;
+#
+#     my ( $mt_type, $model );
+#     if ( $model = $mt->model( $type ) ) {
+#         $mt_type = $type;
+#     }
+#     else {
+#         my $type_cfg = $class->rateable_object_types;
+#         $type        = $type_cfg->{$type}{type_proxy} if $type_cfg->{$type};
+#         if ( $type ) {
+#             $model = $mt->model( $type );
+#             $mt_type = $type if $model;
+#         }
+#     }
+#     return wantarray ? ( $mt_type, $model ) : $mt_type;
+#
+# }
 
 
 CACHING:

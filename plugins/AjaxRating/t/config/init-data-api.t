@@ -73,12 +73,12 @@ subtest "obj_to_type" => sub {
 
 my @ep_tests;
 subtest "rateable_object_types" => sub {
-    my $rateable = AjaxRating->rateable_object_types;
+    my $rateable = AjaxRating::Types->instance->enabled_types;
     foreach my $type ( sort keys %$rateable ) {
-        my $plural = $rateable->{$type}{type_plural};
+        my $plural = $rateable->{$type}->obj_type_plural;
         subtest "$type" => sub {
-            isnt( $type,   undef, "type" );
-            isnt( $plural, undef, "type_plural" );
+            isnt( $type,   undef, "obj_type" );
+            isnt( $plural, undef, "obj_type_plural" );
         };
 
         push( @ep_tests,

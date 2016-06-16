@@ -14,15 +14,23 @@ package AjaxRating::Util {
 
     sub get_config {
         my ( $scope, @keys ) = @_;
-        $scope ||= 'system';
 
         # Scope can be a blog_id, a blog object or any normally supported
-        # scope e.g. system or blog:NNN (where NNN is the blog_id)
-        if ( blessed($scope) && $scope->isa( MT->instance->model('blog') ) ) {
+        # scope e.g. system or blog:NNN (where NNN is the blog_id). Unless
+        # specified, it's system
+        if ( ! $scope ) {
+            $scope = 'system';
+        }
+        elsif ( blessed($scope) && $scope->isa( MT->instance->model('blog'))) {
             $scope = 'blog:'.$scope->id;
         }
         elsif ( looks_like_number($scope) ) {
             $scope = 'blog:'.$scope;
+        }
+        else {
+            croak "Invalid plugin config scope: $scope"
+                unless $scope eq 'system'
+                    or $scope =~ m{^blog:\d+$};
         }
 
         # Get config from request cache or create it if necessary
@@ -102,7 +110,7 @@ package AjaxRating::Util {
     }
 
     sub reporter {
-        require DDP if @_;
+        # require DDP if @_;
         my @caller = caller(1);
         say STDERR sprintf 'Reporting from %s (line %d) %s',
             @caller[3,2], (scalar @_ ? ' with: '.np(@_) : '');

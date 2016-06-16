@@ -11,42 +11,53 @@ use Clone qw( clone );
 
 sub init_app {
     my ( $plugin, $app ) = @_;
-
-    my $data_api = AjaxRating->plugin->registry(qw( applications data_api ));
+    my $ar_data_api = AjaxRating->plugin->registry(qw( applications data_api ));
 
     # TODO I just could not make the following work so I duplicated the resources in config.yaml
-    # my $resources = $data_api->{resources};
+    # my $resources = $ar_data_api->{resources};
     # backport_ar_resources( $app, $resources );
 
-    my $endpoints = $data_api->{endpoints};
+    my $endpoints = $ar_data_api->{endpoints};
     my $object_endpoints
         = [ grep { $_->{id} =~ m/^ar_object/ } @$endpoints ];
 
-    ### Now insert resources for all rateable objects. By default,
-    ### this will add a 'ratings' hash into entry, page and comment
+    ### Now create endpoints and resources for all rateable objects. By
+    ### default, this will add a 'ratings' hash into entry, page and comment
     ### resources
-    my $types  = AjaxRating->rateable_object_types;
+    require AjaxRating::Types;
+    my $types = AjaxRating::Types->instance->initialized_types;
     foreach my $type ( keys %$types ) {
         foreach my $ep ( @$object_endpoints ) {
             my $new_ep = objectify_endpoint( clone($ep), $types->{$type} );
             push( @$endpoints, $new_ep );
         }
+
+        # blog resources are handled in AjaxRating::DataAPI::Resource::Blog
+        next if $type eq 'blog';
+
+        if ( MT->model( $types->{$type}->obj_type )) {
+            $ar_data_api->{resources}{$type} ||= {
+                %{ $ar_data_api->{resources}{DEFAULT} }
+            }
+        }
     }
+    # p $ar_data_api->{resources};
+    # p $app->registry(qw( applications data_api resources ));
 }
 
 sub objectify_endpoint {
-    my ( $ep, $type_cfg ) = @_;
-
-    my $type = $type_cfg->{type};
+    my ( $ep, $type )   = @_;
+    my $obj_type        = $type->obj_type;
+    my $obj_type_plural = $type->obj_type_plural;
 
     # ar_object_fetch_summary -> ar_entry_fetch_summary
-    $ep->{id} =~ s{^ar_object}{ar_$type};
+    $ep->{id} =~ s{^ar_object}{ar_$obj_type};
 
     # :obj_type -> :entries
-    $ep->{route} =~ s{obj_type}{$type_cfg->{type_plural}};
+    $ep->{route} =~ s{obj_type}{$obj_type_plural};
 
     # :obj_id(s) -> :entry_id(s)
-    $_ =~ s{obj_id}{${type}_id}
+    $_ =~ s{obj_id}{${obj_type}_id}
         foreach $ep->{route},
                 $ep->{default_params}{id_param};
     $ep;

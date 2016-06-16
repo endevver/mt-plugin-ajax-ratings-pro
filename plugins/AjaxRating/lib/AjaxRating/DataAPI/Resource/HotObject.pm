@@ -17,6 +17,10 @@ sub fields {
         },
         {   name   => 'avgScore',
             alias  => 'avg_score',
+            from_object => sub {
+                my $obj = shift or return;
+                $obj->avg_score + 0
+            },
         },
         $MT::DataAPI::Resource::Common::fields{blog},
         $MT::DataAPI::Resource::Common::fields{createdDate},

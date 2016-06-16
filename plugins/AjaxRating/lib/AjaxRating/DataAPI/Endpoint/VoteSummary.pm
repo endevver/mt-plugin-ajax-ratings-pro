@@ -15,7 +15,8 @@ package AjaxRating::DataAPI::Endpoint::VoteSummary {
         my ( $terms, $args, $options ) = setup_request( $app, $endpoint );
         return unless $terms;
 
-        my $res = filtered_list( $app, $endpoint, 'ajaxrating_votesummary' )
+        my $res = filtered_list( $app, $endpoint, 'ajaxrating_votesummary',
+                                 $terms, $args, $options )
             or return;
 
         unless ( ref($terms->{obj_id}) or $res->{count} > 1 ) {

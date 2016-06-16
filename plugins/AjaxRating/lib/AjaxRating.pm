@@ -8,21 +8,20 @@ use 5.0101;  # Perl v5.10.1 minimum
 use Try::Tiny;
 use List::MoreUtils  qw( first_result first_value );
 use Scalar::Util     qw( blessed looks_like_number );
+use MT;
 use MT::Util         qw( epoch2ts );
 use AjaxRating::Util qw( get_config pluralize_type );
-# use DDP { filters => {
-#     'MT::App::CMS' => sub { say 'App: ', $_[0] },
-#     'MT::Plugin'   => sub { say $_[0]->id, ': ', $_[0] }
-# }};
+# use DDP {
+#     caller_info => 1,
+#     filters => {
+#         'MT::App::CMS' => sub { say 'App: ', $_[0] },
+#         'MT::Plugin'   => sub { say $_[0]->id, ': ', $_[0] }
+#     }
+# };
 
-use constant DEBUG => 1;
+sub plugin { return MT->component('ajaxrating') }
 
-sub plugin {
-    state $plugin = do { require MT; MT->instance->component('ajaxrating') };
-    return $plugin;
-}
-
-sub post_init { AjaxRating::Types->init( @_ ) }
+sub post_init { require AjaxRating::Types; AjaxRating::Types->init( @_ ) }
 
 sub init_app {
     my ( $plugin, $app ) = @_;
@@ -34,74 +33,6 @@ sub init_app {
         require AjaxRating::DataAPI::Callback::Init;
         AjaxRating::DataAPI::Callback::Init::init_app( @_ );
     }
-}
-
-sub rateable_object_types {
-    my ( $class, $scope )   = @_;
-    state $cfgkey           = 'rateable_object_types';
-    state $default_resource = $class->plugin->registry(
-                                qw(applications data_api resources DEFAULT));
-    $scope ||= do {
-        require MT;
-        my $app     = MT->instance;
-        my $blog_id = try { $app->blog->id } || try { $app->param('blog_id') };
-        $blog_id ? 'blog:'.$blog_id : 'system';
-    };
-
-    my $r = MT->request('rateable_object_types') || {};
-    if ( keys %{$r->{$scope}} ) {
-        return wantarray ? @{$r->{$scope}{enabled}} : $r->{$scope}{config};
-    }
-
-    my $blogcfg = {};
-    if ( $scope ne 'system' ) {
-        $blogcfg = get_config( $scope, $cfgkey ) || {};
-    }
-
-    my $syscfg = get_config( 'system', $cfgkey );
-    unless ( $syscfg ) {
-        my $iter = MT->model('ajaxrating_vote')
-                     ->count_group_by(undef, { group => ['obj_type'] } );
-        while ( my ( $count, $type ) = $iter->() ) {
-            $syscfg->{$type} = {
-                enabled     => 1,
-                type        => $type,
-                type_plural => pluralize_type( $type ),
-            }
-        }
-        $class->plugin->set_config_value( $cfgkey, $syscfg, 'system' );
-    }
-
-    my ( $config, @enabled );
-    my %types = map { $_ => 1 } keys %$syscfg, keys %$blogcfg;
-    foreach my $type ( sort keys %types ) {
-        my ( $b, $s ) = ( $blogcfg->{$type}||{}, $syscfg->{$type}||{} );
-        next unless $b->{enabled}
-                 || ( $s->{enabled} && ! defined($b->{enabled}) );
-        push( @enabled, $type );
-        $config->{$type} = {
-            resources   => $default_resource,
-            type        => $type,
-            type_proxy  => $type,
-            ### TODO Document post_save and pre_remove callback configuration
-            # pre_remove => "$YourPlugin::YourPackage::${type}_pre_remove",
-            # post_save   => "$YourPlugin::YourPackage::${type}_post_save",
-            %$s,
-            %$b
-        };
-        $config->{$type}{type_plural} ||= pluralize_type( $type );
-    }
-
-    $r->{$scope}{enabled} = \@enabled;
-    $r->{$scope}{config}  = $config;
-
-    return wantarray ? @enabled : $config;
-
-    # TODO Filter non-rateable? Hmmmmm
-    # accesstoken association banlist config failedlogin fileinfo filter log
-    # notification objectasset objectscore objecttag permission placement
-    # plugindata role session template templatemap touch ts_error ts_exitstatus
-    # ts_funcmap ts_job
 }
 
 sub listing {

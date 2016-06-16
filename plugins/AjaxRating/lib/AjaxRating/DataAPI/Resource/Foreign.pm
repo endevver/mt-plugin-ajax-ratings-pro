@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use 5.0101;  # Perl v5.10.1 minimum
 use MT;
+use AjaxRating::Types;
 use AjaxRating::Util qw( obj_to_type );
 
 # Adds a `ratings` hash to foreign object data JSON
@@ -22,14 +23,18 @@ sub fields {
 }
 
 sub from_object {
-    my ( $obj ) = @_;
+    my ( $obj )      = @_;
+    my ( $obj_type ) = obj_to_type( $obj );
+    my $enabled      = AjaxRating::Types->enabled_types();
+
+    my $data = {};
+    return $data unless grep { $_ eq $obj_type } keys %$enabled;
+
     my $app        = MT->instance;
     state $Summary = $app->model('ajaxrating_votesummary');
     state $Vote    = $app->model('ajaxrating_vote');
 
-    my ($obj_type) = obj_to_type( $obj );
     my %terms      = ( obj_type => $obj_type, obj_id => $obj->id );
-    my $data       = {};
 
     # Add current user's rating, if one exists
     my $user = $app->user;
