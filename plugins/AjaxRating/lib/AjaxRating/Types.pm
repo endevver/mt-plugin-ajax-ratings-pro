@@ -254,8 +254,15 @@ sub blog_config {
 sub save_system_config {
     my $self = shift;
     my $cfg  = shift || $self->system_config;
-    AjaxRating->plugin->set_config_value(
-        'rateable_object_types', $cfg, 'system' );
+    $self->save_config( $cfg, 'system' );
+}
+
+sub save_config {
+    my $self = shift;
+    my ( $cfg, $scope ) = @_;
+    die "No config specified" unless $cfg;
+    die "No scope specified"  unless $scope;
+    AjaxRating->plugin->set_config_value('rateable_object_types', $cfg, $scope);
 }
 
 
