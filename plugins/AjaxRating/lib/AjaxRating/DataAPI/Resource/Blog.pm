@@ -28,8 +28,9 @@ sub rateable_types {
     my ( $obj )    = @_;
     my $Types      = AjaxRating::Types->instance;
     my $enabled    = $Types->enabled_types('blog:'.$obj->id);
-    my $types      = { map { $_ => \1 } keys %$enabled };
-    $types->{$_} ||= \0 foreach keys %{ $Types->initialized_types };
+    my $types      = { map { $_ => { enabled => \1 } } keys %$enabled };
+    $types->{$_}{enabled}
+                 ||= \0 foreach keys %{ $Types->initialized_types };
     return $types;
 }
 
