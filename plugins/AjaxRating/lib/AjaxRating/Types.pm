@@ -270,36 +270,6 @@ sub save_config {
 
 __END__
 
-# # The object_type proxy is used for rating MT objects using alternate obj_type
-# # values.  For example, if you wanted to rate an entry on multiple facets. The
-# # default rating with the obj_type value 'entry' might mean "Like" but you
-# # could also rate the it on clarity and usefulness.  In these cases, the
-# # obj_type values might be "clarity" and "useful" with the obj_id value of the
-# # entry ID.  But since you can't look the entry up using those obj_type values,
-# # you could set the type_proxy value to 'entry' so it can be retrieved.
-# sub object_type_proxy {
-#     my ( $class, $type ) = @_;
-#     return unless $type;
-#
-#     my $mt = MT->instance;
-#
-#     my ( $mt_type, $model );
-#     if ( $model = $mt->model( $type ) ) {
-#         $mt_type = $type;
-#     }
-#     else {
-#         my $type_cfg = $class->rateable_object_types;
-#         $type        = $type_cfg->{$type}{type_proxy} if $type_cfg->{$type};
-#         if ( $type ) {
-#             $model = $mt->model( $type );
-#             $mt_type = $type if $model;
-#         }
-#     }
-#     return wantarray ? ( $mt_type, $model ) : $mt_type;
-#
-# }
-
-
 CACHING:
 
 * APP: In $app object
