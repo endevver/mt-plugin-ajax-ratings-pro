@@ -180,7 +180,8 @@ sub check_object_type {
 
 sub check_duplicate {
     my $obj = shift;
-    $obj->check_dupe_by_voter( @_ ) && $obj->check_dupe_by_ip( @_ );
+    $obj->voter_id ? $obj->check_dupe_by_voter( @_ )
+                   : $obj->check_dupe_by_ip( @_ );
 }
 
 ### DUPLICATE VOTE CHECK - USER
