@@ -257,7 +257,8 @@ package AjaxRating::Object {
         my ( $cb, $obj, $obj_orig ) = @_;
         # reporter(@_);
 
-        my $is_vote = $obj->has_column('voter_id') ? 1 : 0;
+        my $is_vote = $obj->has_column('voter_id')                 ? 1 : 0;
+        my $is_summ = $obj->isa('AjaxRating::Object::VoteSummary') ? 1 : 0;
         my $is_new  = ! ( $obj->{__resave} = $obj->id ? 1 : 0 );
 
         my ( $modified_by, $created_by );
@@ -265,7 +266,7 @@ package AjaxRating::Object {
             $modified_by = $obj->voter_id;
             $created_by  = $obj->voter_id if $is_new;
         }
-        else {
+        elsif ( $is_summ ) {
             my $vote = $obj->{__vote} || $obj_orig->{__vote};
             $modified_by = $vote->voter_id;
             $created_by  = $obj->author_id if $is_new;
