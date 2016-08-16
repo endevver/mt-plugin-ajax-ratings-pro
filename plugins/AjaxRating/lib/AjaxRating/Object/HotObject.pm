@@ -61,12 +61,12 @@ sub pre_save {
 
 sub post_save {
     my ( $cb, $obj, $obj_orig ) = @_;
-    reporter(@_);
+    # reporter(@_);
 }
 
 sub post_remove {
     my ( $cb, $obj ) = @_;
-    reporter(@_);
+    # reporter(@_);
 }
 
 
