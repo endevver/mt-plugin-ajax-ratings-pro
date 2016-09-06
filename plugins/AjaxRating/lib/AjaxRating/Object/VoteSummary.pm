@@ -177,8 +177,10 @@ sub remove_vote {
 
     try { $self->object_matches( $vote, { or_die => 1 } ) } catch { croak $_ };
 
-    croak 'Unhandled exception: remove_vote from unsaved '.ref($self).' object'
-        unless $self->object_is_stored;
+    # Won't this normally be unsaved at this point? I'm not sure what this test
+    # shows.
+    # croak 'Unhandled exception: remove_vote from unsaved '.ref($self).' object'
+    #     unless $self->object_is_stored;
 
     $self->adjust_for_vote({ vote => $vote, remove => 1 });
 }
