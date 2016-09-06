@@ -296,6 +296,21 @@ sub can_save_vote {
 # cms_save_filter.ajaxrating_vote
 sub save_filter_vote {
     my ( $cb, $app, $obj, $orig ) = @_;  # $original is Data API only
+
+    my $plugin  = AjaxRating->plugin;
+    my $blog_id = $obj->blog_id;
+    my $config  = {
+        %{ $plugin->get_config_hash('system') || {} },
+        $blog_id ? %{ $plugin->get_config_hash("blog:$blog_id") || {} } : ()
+    };
+
+    # Should this vote be disallowed for any reason?
+    return $obj->check_required_fields
+        && $obj->check_score_range( $config )
+        && $obj->check_object_type( $config )
+        && $obj->check_duplicate( $config )
+            || MT->instance->error( $obj->errstr );
+
     return 1;
 }
 

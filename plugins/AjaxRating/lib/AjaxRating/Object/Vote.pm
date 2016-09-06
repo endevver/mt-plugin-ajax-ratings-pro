@@ -127,11 +127,15 @@ sub pre_save {
         $blog_id ? %{ $plugin->get_config_hash("blog:$blog_id") || {} } : ()
     };
 
-    return $obj->check_required_fields
-        && $obj->check_score_range( $config )
-        && $obj->check_object_type( $config )
-        && $obj->check_duplicate( $config )
-            || MT->instance->error( $obj->errstr );
+    # While processed, these return values don't impact the pre_save callback:
+    # it completes regardless of whether this evaluates true or an error is
+    # returned. All object level callbacks seem to work this way.
+    # return $obj->check_required_fields
+    #     && $obj->check_score_range( $config )
+    #     && $obj->check_object_type( $config )
+    #     && $obj->check_duplicate( $config )
+    #         || MT->instance->error( $obj->errstr );
+
     return 1;
 }
 
