@@ -1,109 +1,113 @@
-package AjaxRating::DataAPI::Callback::Vote {
+package AjaxRating::DataAPI::Callback::Vote;
 
-    use strict;
-    use warnings;
+use strict;
+use warnings;
+use AjaxRating::CMS;
 
-    ### FIXME This save filter should be applied to all saves, not just Data API
-    ### but that requires more refactoring than which has been done to enable
-    ### Data API access.
-    sub save_filter {
-        my ( $cb, $app, $obj, $obj_orig ) = @_;
+# data_api_save_permission_filter.ajaxrating_vote
+#    A permission-filter callback.
+#    Returns 1 if current user can save this object.
+# 1st callback called by MT::DataAPI::Endpoint::Common::save_object
+# Never called if the current user is superuser
+# If returns false, $app gets empty list and $app->error(403)
+sub can_save {
+    # run_permission_filter( $app, 'data_api_save_permission_filter',
+    #     $type, $obj->id, $obj, $original )
+    #     or return;
+    my ( $cb, $app, $obj_id, $obj, $original ) = @_;
+    AjaxRating::CMS::can_save_vote(@_) or return;
+    return 1; # else $app->error(403)
+}
 
-        # REQUIRED FIELDS
-        my @required     = qw( blog_id obj_type obj_id score );
-        ### TODO Decision: Should ratings of things which are not child objects  of a blog be allowed? (i.e. no blog_id; e.g. authors)
+# data_api_save_filter.ajaxrating_vote
+#     A filter callback.
+#     Returns 1 if the MT can save this object.
+# 2nd callback called by MT::DataAPI::Endpoint::Common::save_object
+sub save_filter {
+    # $app->run_callbacks( 'data_api_save_filter.' . $type,
+    #     $app, $obj, $original )
+    #     or return $app->error( $app->errstr, 409 );
+    my ( $cb, $app, $obj, $orig ) = @_;
+    AjaxRating::CMS::save_filter_vote(@_) or return;
+    return 1; # Else $app->error( $app->errstr, 409 );
+}
 
-        # MIN/MAX SCORE
-        my ( $min_score, $max_score ) = ( undef, 10 );
-        ### FIXME Why is 10 the max score? It's both arbitrary and limiting
-        ### FIXME Should negative votes be allowed?
-        ### If so, votesummary arithmetic should be validated throughout
-        my $plugin     = MT->instance->component('ajaxrating');
-        my $config     = $plugin->get_config_hash('blog:'.$obj->blog_id) || {};
-        my $check_ip
-            = $plugin->get_config_value('enable_ip_checking', 'system');
-        my $check_type = $config->{ratingl};
+# data_api_pre_save.ajaxrating_vote
+#     A filter callback.
+#     Returns 1 if the MT can save this object.
+# 3rd callback called by MT::DataAPI::Endpoint::Common::save_object
+sub pre_save {
+    # $app->run_callbacks( 'data_api_pre_save.' . $type, $app, $obj, $original )
+    #     or return $app->error(
+    #     $app->translate( "Save failed: [_1]", $app->errstr ), 409 );
+    my ( $cb, $app, $obj, $orig ) = @_;
+    AjaxRating::CMS::pre_save_vote(@_) or return;
+    return 1; # Else $app->error( "Save failed: ".$app->errstr, 409 );
+}
 
-        ### REQUIRED VALUES CHECK
-        if ( my @missing = grep { ! defined( $obj->$_ ) } @required ) {
-            return $app->error(
-                ref($obj) .' object save blocked for missing fields: '
-                          . join( ', ',@missing ) );
-        }
+# data_api_post_save.ajaxrating_vote
+#     A post-save callback.
+# Last callback called by MT::DataAPI::Endpoint::Common::save_object
+sub post_save {
+    # $app->run_callbacks( 'data_api_post_save.' . $type,
+    #     $app, $obj, $original );
+    my ( $cb, $app, $obj, $orig ) = @_;
+    AjaxRating::CMS::post_save_vote(@_);
+    # return ignored
+}
 
-        my $type = $obj->obj_type;
-        my %terms = ( obj_type => $type, obj_id => $obj->obj_id );
+# data_api_list_permission_filter.ajaxrating_vote
+#     A permission-filter callback.
+#     Returns 1 if current user can retrieve a list of this $ds.
+# 1st callback called by MT::DataAPI::Endpoint::Common::filtered_list
+# Never called if the current user is superuser
+# If returns false, $app gets empty list and $app->error(403)
+sub can_view {
+    # run_permission_filter( $app, 'data_api_list_permission_filter',
+    #     $ds, $terms, $args, $options )
+    #     or return;
+    my ( $cb, $app, $ds, $terms, $args, $options ) = @_;
+    AjaxRating::CMS::can_view_vote(@_) or return;
+    return 1;   # Else $app->error(403)
+}
 
-        ### SCORE VALUE BOUNDARY CHECK
-        # Refuse votes that exceed the maximum number of scoring points.
-        my $max  = $config->{$type . "_max_points"} // $max_score;
-        my $min  = $config->{$type . "_min_points"} // $min_score;
-        return $app->error(
-                'Specified score exceeds the maximum for this item.' )
-            if defined $max and $obj->score > $max;
-        return $app->error(
-                'Specified score exceeds the minimum for this item.' )
-            if defined $min and $obj->score < $min;
+# data_api_pre_load_filtered_list.ajaxrating_vote
+# 2nd callback called by MT::DataAPI::Endpoint::Common::filtered_list
+# Called just before $filter->count_objects
+# Then again before $filter->load_objects
+sub pre_load_filtered_list {
+    # MT->run_callbacks( 'data_api_pre_load_filtered_list.' . $ds,
+    #     $app, $filter, \%count_options, \@cols );
+    my ( $cb, $app, $filter, $options, $cols ) = @_;  # $cols is an arrayref
+    AjaxRating::CMS::pre_load_filtered_list_vote(@_);
+    # return ignored
+}
 
-        ### VALID OBJECT TYPE CHECK
-        # Check that this vote's obj_type is valid for this blog
-        if ( $check_type ) {
-            return $app->error( 'Invalid object type specified: '.$type )
-                unless grep { $type eq $_ } qw( entry blog );
-        }
+# data_api_delete_permission_filter.ajaxrating_vote
+#     A permission-filter callback.
+#     Returns 1 if current user can remove this object.
+# Initial callback called by MT::DataAPI::Endpoint::Common::remove_object
+# Never called if the current user is superuser
+# If returns false, $app gets empty list and $app->error(403)
+sub can_delete {
+    # run_permission_filter( $app, 'data_api_delete_permission_filter',
+    #     $type, $obj )
+    #     or return;
+    my ( $cb, $app, $obj ) = @_;
+    AjaxRating::CMS::can_delete_vote(@_) or return;
+    return 1;  # Else $app->error(403)
+}
 
-        ### DUPLICATE VOTE CHECK - IP ADDRESS
-        # If IP address checking is enabled, return an error if we already have
-        # a vote from the current IP address (assuming that's defined)
-        $obj->ip( eval { MT->instance->remote_ip } ) unless $obj->ip;
-        if ( $check_ip && $obj->ip ) {
-            return $app->error(
-                    'Your IP address has already voted on this item.')
-                if ref($obj)->exist({ %terms, ip => $obj->ip });
-        }
-
-        ### DUPLICATE VOTE CHECK - USER
-        # Return error if vote exists from current logged-in user, if exists
-        unless ( my $voter_id = $obj->voter_id ) {
-            # Determine the user's identity - First try commenter session
-            my ( $session, $voter ) = eval { $app->get_commenter_session };
-            # If not defined, fall back to MT user record
-            $voter //= eval { $app->user };
-            $obj->voter_id( $voter->id ) if $voter;
-        }
-
-        if ( $obj->voter_id ) {
-            return $app->error('You have already voted on this item.')
-                if ref($obj)->exist({ %terms, voter_id => $obj->voter_id });
-        }
-        else {
-            warn sprintf "No voter_id in %s record: %s",
-                ref($obj), $obj->to_hash();
-        }
-
-        return 1;
-    }
-
-    ### FIXME This post_save callback should be applied to all saves, not just Data API
-    ### but that requires more refactoring than which has been done to enable
-    ### Data API access.
-    sub post_save {
-        my ( $cb, $app, $obj, $obj_orig ) = @_;
-
-        # Update the Vote Summary. The summary is used because it will let
-        # publishing happen faster (loading one summary row to publish results
-        # is faster than loading many AjaxRating::Vote records).
-        my $votesummary = $app->model('ajaxrating_votesummary')->get_by_key({
-            obj_type => $obj->obj_type,
-            obj_id   => $obj->obj_id,
-        });
-        $votesummary->add_vote( $obj );
-
-        # Now that the vote has been recorded, rebuild the required pages.
-        AjaxRating->rebuild_vote_object( $obj );
-
-        return 1;
-    }
+# data_api_post_delete.ajaxrating_vote
+#     A post-remove callback.
+# Final callback called by MT::DataAPI::Endpoint::Common::remove_object
+sub post_delete {
+    # $app->run_callbacks( 'data_api_post_delete.' . $type, $app, $obj );
+    my ( $cb, $app, $obj ) = @_;
+    AjaxRating::CMS::post_delete_vote(@_);
+    # return ignored
 }
 
 1;
+
+__END__

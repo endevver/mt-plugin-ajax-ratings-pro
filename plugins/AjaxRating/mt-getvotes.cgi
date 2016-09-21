@@ -2,4 +2,5 @@
 
 use strict;
 use lib "lib", ($ENV{MT_HOME} ? "$ENV{MT_HOME}/lib" : "../../lib");
-use MT::Bootstrap App => 'AjaxRating::GetVotes';
+use 5.0101;  # Perl v5.10.1 minimum
+use MT::Bootstrap App => 'AjaxRating::App::GetVotes';

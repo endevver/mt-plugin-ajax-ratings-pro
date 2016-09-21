@@ -2,12 +2,14 @@ package AjaxRating::CMS;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
+use Try::Tiny;
 
 # From the Vote Activity Log (listing framework), delete a vote or votes.
 sub vote_delete {
     my ($app) = @_;
     my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     # The log record is saved to the system Activity Log. We want to log the
     # deleted vote because it's something significant and could skew results,
@@ -15,19 +17,15 @@ sub vote_delete {
     require Data::Dumper;
 
     foreach my $id (@ids) {
-        my $record = $app->model('ajaxrating_vote')->load($id)
+        my $vote = $app->model('ajaxrating_vote')->load($id)
             or next;
-        $record->remove or die $record->errstr;
+        $vote->remove or die $vote->errstr;
 
         # Recalculate the Vote Summary record.
-        my $votesummary = _rebuild_votesummary_record({
-            blog_id  => $record->blog_id,
-            obj_type => $record->obj_type,
-            obj_id   => $record->obj_id,
-        });
+        my $vsumm = $vote->rebuild_votesummary_record();
 
         # Get a string of the dumped record to insert in the Activity Log.
-        my $dumped_record = Data::Dumper->Dump([$record->{column_values}]);
+        my $dumped_vote = Data::Dumper->Dump([$vote->{column_values}]);
 
         $app->log({
             level     => $app->model('log')->INFO(),
@@ -35,7 +33,7 @@ sub vote_delete {
             category  => 'vote',
             author_id => $app->user->id,
             message   => 'A Vote Log Record has been deleted.',
-            metadata  => $dumped_record,
+            metadata  => $dumped_vote,
         });
     }
 
@@ -48,8 +46,7 @@ sub vote_delete {
 # for some reason.
 sub vote_recalculate_votesummary {
     my ($app) = @_;
-    my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     foreach my $id (@ids) {
         # Use the Vote to rebuild a Vote Summary.
@@ -57,11 +54,7 @@ sub vote_recalculate_votesummary {
             or next;
 
         # Recalculate the Vote Summary record.
-        my $votesummary = _rebuild_votesummary_record({
-            blog_id  => $vote->blog_id,
-            obj_type => $vote->obj_type,
-            obj_id   => $vote->obj_id,
-        });
+        my $vsumm = $vote->rebuild_votesummary_record();
     }
 
     $app->add_return_arg( recalculated => 1 );
@@ -71,19 +64,14 @@ sub vote_recalculate_votesummary {
 # From the Vote Summary Activity Log (listing framework), recalculate summaries.
 sub votesummary_recalculate {
     my ($app) = @_;
-    my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     foreach my $id (@ids) {
-        my $summ = $app->model('ajaxrating_votesummary')->load($id)
+        my $vsumm = $app->model('ajaxrating_votesummary')->load($id)
             or next;
 
         # Recalculate the Vote Summary record.
-        my $votesummary = _rebuild_votesummary_record({
-            blog_id  => $summ->blog_id,
-            obj_type => $summ->obj_type,
-            obj_id   => $summ->obj_id,
-        });
+        my $new_vsumm = $vsumm->rebuild_votesummary_record();
     }
 
     $app->add_return_arg( recalculated => 1 );
@@ -94,8 +82,7 @@ sub votesummary_recalculate {
 # record and all related Vote records.
 sub votesummary_delete {
     my ($app) = @_;
-    my $q     = $app->can('query') ? $app->query : $app->param;
-    my @ids   = $q->param('id');
+    my @ids   = $app->param('id');
 
     # The log record is saved to the system Activity Log. We want to log the
     # deleted vote because it's something significant and could skew results,
@@ -194,78 +181,6 @@ sub list_prop_object_content {
     }
 }
 
-# This will completely rebuild an object's votesummary record, which *could* be
-# expensive if a lot of vote records exist for the object.
-sub _rebuild_votesummary_record {
-    my ($arg_ref) = @_;
-    my $blog_id   = $arg_ref->{blog_id};
-    my $obj_type  = $arg_ref->{obj_type};
-    my $obj_id    = $arg_ref->{obj_id};
-    my $app = MT->instance;
-
-    # Try to load an existing VoteSummary record so that it can be updated.
-    my $votesummary = $app->model('ajaxrating_votesummary')->load({
-        obj_type => $obj_type,
-        obj_id   => $obj_id,
-    });
-
-    # If no VoteSummary was found for this object, create one and populate
-    # it with "getting started" values.
-    if (!$votesummary) {
-        $votesummary = MT->model('ajaxrating_votesummary')->new;
-        $votesummary->obj_type(  $obj_type      );
-        $votesummary->obj_id(    $obj_id        );
-        $votesummary->blog_id(   $blog_id       );
-        $votesummary->author_id( $app->user->id );
-        $votesummary->vote_count(0);
-        $votesummary->total_score(0);
-    }
-
-    my $iter = $app->model('ajaxrating_vote')->load_iter({
-        obj_type => $obj_type,
-        obj_id   => $obj_id,
-    });
-
-    my $vote_count  = 0;
-    my $total_score = 0;
-    my $yaml = YAML::Tiny->new; # For vote distribution data
-
-    while ( my $vote = $iter->() ) {
-        # Update the VoteSummary with details of this vote change.
-        $vote_count++;
-        $total_score += $vote->score;
-
-        # Update the voting distribution, which makes it easy to output
-        # "X Stars has received Y votes"
-        $yaml->[0]->{$vote->score} += 1;
-    }
-
-    $votesummary->vote_count(  $vote_count  );
-    $votesummary->total_score( $total_score );
-
-    # Convert the YAML hash to a string and save the vote summary.
-    $votesummary->vote_dist( $yaml->write_string() );
-
-    if ($votesummary->total_score && $votesummary->vote_count) {
-        $votesummary->avg_score(
-            sprintf("%.1f", $votesummary->total_score / $votesummary->vote_count)
-        );
-    }
-    else {
-        $votesummary->avg_score( 0 );
-    }
-
-    # Update the the summary's modified on timestamp.
-    my ( $s, $m, $h, $d, $mo, $y ) = localtime(time);
-    my $mod_time = sprintf( "%04d%02d%02d%02d%02d%02d",
-        1900 + $y, $mo + 1, $d, $h, $m, $s );
-    $votesummary->modified_on( $mod_time );
-
-    $votesummary->save or die $votesummary->errstr;
-
-    return $votesummary;
-}
-
 # Listing framework system filters for both the Vote and Vote Summary records.
 sub system_filters {
     my $system_filters = {
@@ -314,7 +229,7 @@ sub system_filters {
     # with Ajax Rating, however the following only ever returns one value...
     # my $type = 'ajaxrating_vote';
     # my $column = 'obj_type';
-    # 
+    #
     # my $class  = MT->instance->model($type);
     # my $driver = $class->dbi_driver;
     # my $dbd    = $driver->dbd;
@@ -325,7 +240,7 @@ sub system_filters {
     # $sql->from([ $table ]);
     # # $sql->distinct(1);
     # MT->log( "SQL: ".$sql->as_sql );
-    # 
+    #
     # my $dbh = $driver->r_handle or die 'Could not get driver handle';
     # my $sth = $dbh->prepare( $sql->as_sql ) or die 'Prepare failed';
     # $sth->execute(@{ $sql->{bind} }) or warn $dbh->errstr;
@@ -365,4 +280,154 @@ sub system_filters {
     return $system_filters;
 }
 
+# return $app->permission_denied()
+#     unless $app->run_callbacks(
+#     'cms_save_permission_filter.' . $t,
+#     $app, $id, $vote );
+# For the AddVote app, $id will be undef and $obj will be the vote $obj
+sub can_save_vote {
+    my ( $cb, $app, $id, $obj, $original ) = @_; # $original is Data API only
+
+    check_request_method( $app ) or return;
+
+    return 1;
+}
+
+# cms_save_filter.ajaxrating_vote
+sub save_filter_vote {
+    my ( $cb, $app, $obj, $orig ) = @_;  # $original is Data API only
+
+    my $plugin  = AjaxRating->plugin;
+    my $blog_id = $obj->blog_id;
+    my $config  = {
+        %{ $plugin->get_config_hash('system') || {} },
+        $blog_id ? %{ $plugin->get_config_hash("blog:$blog_id") || {} } : ()
+    };
+
+    # Should this vote be disallowed for any reason?
+    return $obj->check_required_fields
+        && $obj->check_score_range( $config )
+        && $obj->check_object_type( $config )
+        && $obj->check_duplicate( $config )
+            || MT->instance->error( $obj->errstr );
+
+    return 1;
+}
+
+# $app->run_callbacks( 'cms_pre_save.ajaxrating_vote', $app, $obj, $orig_obj )
+sub pre_save_vote {
+    my ( $cb, $app, $obj, $orig_obj ) = @_;
+
+    # If this is a new vote, fill in defaults from app if possible
+    unless ( $obj->id ) {
+        # Use try() in case app doesn't have the necessary methods (e.g. MT)
+
+        $obj->ip( $obj->ip || try { $app->remote_ip } );
+
+        ### FIXME Need to get it directly from the app somewhere. Here?
+        $obj->voter_id(   $obj->voter_id
+                       || try { ($app->get_commenter_session)[1]->id }
+                       || try { $app->user->id }        );
+
+        $obj->blog_id(    $obj->blog_id
+                       || try { $obj->object->blog_id }
+                       || try { $app->blog->id }
+                       || try {   $app->param('blog_id')
+                               || $app->param('site_id') }  );
+    }
+
+    return 1;
+}
+
+# $app->run_callbacks( 'cms_post_save.ajaxrating_vote', $app, $obj, $orig_obj );
+sub post_save_vote {
+    my ( $cb, $app, $obj, $orig_obj ) = @_;
+
+    # return ignored
+}
+
+# $app->run_callbacks(
+#     'cms_post_bulk_save.ajaxrating_vote',
+#     $app, \@objects );
+sub post_bulk_save_votes {
+    my ( $cb, $app, $objects ) = @_;
+
+    # return ignored
+}
+
+# return $app->permission_denied()
+#     unless $app->run_callbacks(
+#     'cms_view_permission_filter.ajaxrating_vote',
+#     $app, $id, $obj_promise );
+sub can_view_vote {
+    my ( $cb, $app, $id, $obj ) = @_;
+    return 1;
+}
+
+# MT->run_callbacks( 'cms_pre_load_filtered_list.ajaxrating_vote',
+#     $app, $filter, \%count_options, \@cols );
+sub pre_load_filtered_list_vote {
+    my ( $cb, $app, $filter, $options, $cols ) = @_;
+}
+
+# MT->run_callbacks( 'cms_filtered_list_param.ajaxrating_vote', $app, \%res, $objs );
+sub filtered_list_param_vote {
+    my ( $cb, $app, $res, $objs ) = @_;
+    # return ignored
+}
+
+# $app->run_callbacks( 'cms_delete_permission_filter.ajaxrating_vote',
+#     $app, $id, $vote )
+#     || return $app->permission_denied();
+# For the AddVote app, $id will be undef and $obj will be the vote $obj
+sub can_delete_vote {
+    my ( $cb, $app, $id, $obj ) = @_;
+
+    require Scalar::Util;
+    if ( Scalar::Util::blessed($id) ) {
+        $obj = $id;
+        $id  = $obj->id
+    }
+
+    check_request_method( $app, 'DELETE' ) or return;
+
+    # CHECK OBJECT TYPE IF CONFIGURED TO DO SO
+    # my $scope    = 'blog:'.$app->param('blog_id');
+    # my $config   = AjaxRating->plugin->get_config_hash( $scope );
+    # my $obj_type = $app->param('obj_type');
+    # ### FIXME Should be able to use check_object_type here
+    # return $app->error( 'Invalid object type.')
+    #     if $config->{ratingl} and ! grep { $obj_type eq $_ } qw( entry blog );
+
+    ### ONLY VOTER OR SYSADMIN CAN REMOVE VOTE
+    my $user = try { $app->user } catch { MT->model('user')->anonymous };
+
+    unless ( $user->is_superuser ) {
+        if (   $user->is_anonymous
+            or $user->id != ( $obj->voter_id || 0 )) {
+            return $app->error(
+                'You do not have permission to remove this vote', 401 );
+        }
+    }
+    return 1;
+}
+
+
+# $app->run_callbacks( 'cms_post_delete.' . $type, $app, $obj );
+sub post_delete_vote {
+    my ( $cb, $app, $obj ) = @_;
+    # return ignored
+}
+
+sub check_request_method {
+    my ( $app, $required ) = @_;
+    $required ||= 'POST';
+    my $method = try { $app->request_method() } or return 1;
+    return $method eq $required
+        || $app->error( 'Invalid request, must use '.$required );
+}
+
+
 1;
+
+__END__

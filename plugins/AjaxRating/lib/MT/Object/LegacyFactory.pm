@@ -2,10 +2,11 @@ package MT::Object::LegacyFactory;
 
 use strict;
 use warnings;
+use 5.0101;  # Perl v5.10.1 minimum
 use Carp qw( croak );
 use UNIVERSAL::require;
 use Storable qw( dclone );
-use MT::Log::Log4perl qw( l4mtdump ); use Log::Log4perl qw( :resurrect ); my $logger ||= MT::Log::Log4perl->new(); $logger->trace();
+# use MT::Log::Log4perl qw( l4mtdump ); use Log::Log4perl qw( :resurrect ); my $logger ||= MT::Log::Log4perl->new(); $logger->trace();
 
 =head1 NAME
 
@@ -53,7 +54,7 @@ This will be seen by MT::Upgrade as a core schema inconsistency which it will
 immediately rectify by automatically creating the new table.
 
 =item 2. B<Creating a one-time use "legacy class"> based on the original class
-but pointing to the old datasource. 
+but pointing to the old datasource.
 
 This is necessary if, in fact, you would like to be able to access your
 existing data. It's important though that this class not be instantiated
@@ -129,14 +130,14 @@ sub migrate_data {
     my $pkg     = shift;
     my $new_pkg = shift || $pkg->properties->{replaced_by_class}
         or return $pkg->error('No replaced_by_class specified for '.$pkg);
-    ###l4p $logger ||= MT::Log::Log4perl->new(); $logger->trace();
+    ##l4p $logger ||= MT::Log::Log4perl->new(); $logger->trace();
 
     defined( my $cnt = $pkg->count() )
         or return $pkg->error("Could not retrieve count of $pkg objects: "
                                 .($pkg->errstr||'Unknown error'));
     return $cnt unless $cnt;
 
-    ###l4p $logger->info( "Updating $pkg to $new_pkg. Count of objects: ".$cnt );
+    ##l4p $logger->info( "Updating $pkg to $new_pkg. Count of objects: ".$cnt );
 
     my $migrated = 0;
 
@@ -149,13 +150,13 @@ sub migrate_data {
     # my @objs = $pkg->load();
     # foreach my $obj (@objs) {
 
-        ###l4p $logger->info("Cloning the object: ", l4mtdump($obj) );
+        ##l4p $logger->info("Cloning the object: ", l4mtdump($obj) );
 
         # Clone the object as the new class and save
         my $new = $obj->clone_as( $new_pkg );
 
         $new->save or return $pkg->error( sprintf(
-            "Failed saving %s clone of %s object ID %d: %s", 
+            "Failed saving %s clone of %s object ID %d: %s",
                 $new_pkg, $pkg, $obj->id, $new->errstr
         ));
 
@@ -163,8 +164,8 @@ sub migrate_data {
         #$obj->remove or return $pkg->error(
         #    'Failed removing legacy object:'.$obj->errstr );
 
-        ###l4p $logger->debug(sprintf('Saved %s object to new table %s',
-        ###l4p                        $pkg, $new_pkg->table_name));
+        ##l4p $logger->debug(sprintf('Saved %s object to new table %s',
+        ##l4p                        $pkg, $new_pkg->table_name));
 
         $migrated++;
     }
@@ -195,12 +196,12 @@ editor.
 sub remove_datasource {
     my $pkg = shift;
     croak 'remove_datasource is a class method' if ref $pkg;
-    ###l4p $logger ||= MT::Log::Log4perl->new(); $logger->trace();
+    ##l4p $logger ||= MT::Log::Log4perl->new(); $logger->trace();
 
     my $driver  = $pkg->dbi_driver;
     my $ddl     = $driver->dbd->ddl_class;
     my $dropsql = $ddl->drop_table_sql( $pkg );
-    ###l4p $logger->info('DROP TABLE SQL: ', $dropsql);
+    ##l4p $logger->info('DROP TABLE SQL: ', $dropsql);
 
     $driver->sql( [ $dropsql ])
         or return $pkg->error('Failed removing table: '.$driver->errstr);

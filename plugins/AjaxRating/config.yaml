@@ -9,20 +9,12 @@ author_link: http://mt-hacks.com/
 version:     1.5.3
 schema_version: 5
 
+init_app: $AjaxRating::AjaxRating::init_app
+
 object_types:
-    # ar_vote:      AjaxRating::Vote
-    # ar_votesumm:  AjaxRating::VoteSummary
-    # ar_hotobj:    AjaxRating::HotObject
-    # The above should be changed back to the following
-    # and you should continue to refer to these models
-    # with their longer names.  The shorter datasource
-    # in the class should handle the database...
-    ajaxrating_vote:        AjaxRating::Vote
-    ajaxrating_votesummary: AjaxRating::VoteSummary
-    ajaxrating_hotobject:   AjaxRating::HotObject
-
-
-init_app: AjaxRating::Upgrade::PLtoYAML::run
+    ajaxrating_vote:        AjaxRating::Object::Vote
+    ajaxrating_votesummary: AjaxRating::Object::VoteSummary
+    ajaxrating_hotobject:   AjaxRating::Object::HotObject
 
 upgrade_functions:
     ar_abbrev_tables:
@@ -46,26 +38,61 @@ upgrade_functions:
 
 
 callbacks:
-    MT::Entry::pre_remove:    AjaxRating::entry_delete_handler
-    MT::Comment::pre_remove:  AjaxRating::comment_delete_handler
-    MT::TBPing::pre_remove:   AjaxRating::trackback_delete_handler
-    MT::Category::pre_remove: AjaxRating::category_delete_handler
-    MT::Blog::pre_remove:     AjaxRating::blog_delete_handler
-    MT::Author::pre_remove:   AjaxRating::author_delete_handler
-    MT::Tag::pre_remove:      AjaxRating::tag_delete_handler
-    MT::Entry::post_save:     AjaxRating::entry_post_save
-    MT::Comment::post_save:   AjaxRating::comment_post_save
-    MT::TBPing::post_save:    AjaxRating::tbping_post_save
-    commenter_session_state:  AjaxRating::session_state
-    data_api_save_filter.ajaxrating_vote:
-        handler:    $AjaxRating::AjaxRating::DataAPI::Callback::Vote::save_filter
-    data_api_post_save.ajaxrating_vote:
-        handler:    $AjaxRating::AjaxRating::DataAPI::Callback::Vote::post_save
-    # data_api_pre_save.ajaxrating_vote:
-    #     handler:    $AjaxRating::AjaxRating::Vote::data_api_pre_save
+    post_init: $AjaxRating::AjaxRating::post_init
+
+    ### AJAXRATING OBJECT CALLBACKS
+    AjaxRating::Object::VoteSummary::pre_save:
+        handler: $AjaxRating::AjaxRating::Object::VoteSummary::pre_save
+    AjaxRating::Object::VoteSummary::post_save:
+        handler: $AjaxRating::AjaxRating::Object::VoteSummary::post_save
+    AjaxRating::Object::VoteSummary::post_remove:
+        handler: $AjaxRating::AjaxRating::Object::VoteSummary::post_remove
+
+    AjaxRating::Object::HotObject::pre_save:
+        handler: $AjaxRating::AjaxRating::Object::HotObject::pre_save
+    AjaxRating::Object::HotObject::post_save:
+        handler: $AjaxRating::AjaxRating::Object::HotObject::post_save
+    AjaxRating::Object::HotObject::post_remove:
+        handler: $AjaxRating::AjaxRating::Object::HotObject::post_remove
+
+    AjaxRating::Object::Vote::save_filter:
+        handler: $AjaxRating::AjaxRating::Object::Vote::save_filter
+    AjaxRating::Object::Vote::pre_save:
+        handler: $AjaxRating::AjaxRating::Object::Vote::pre_save
+    AjaxRating::Object::Vote::post_save:
+        handler: $AjaxRating::AjaxRating::Object::Vote::post_save
+    AjaxRating::Object::Vote::post_remove:
+        handler: $AjaxRating::AjaxRating::Object::Vote::post_remove
+
+
+    ### OTHER OBJECT CALLBACKS
+    ### We define the following standard object callbacks as well as any
+    ### other needed object types in AjaxRating::init_app
+    commenter_session_state:  $AjaxRating::AjaxRating::session_state
 
 applications:
     cms:
+        callbacks:
+            cms_save_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::can_save_vote
+            cms_save_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::save_filter_vote
+            cms_pre_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::pre_save_vote
+            cms_post_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::post_save_vote
+            cms_post_bulk_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::post_bulk_save_votes
+            cms_view_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::can_view_vote
+            cms_pre_load_filtered_list.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::pre_load_filtered_list_vote
+            cms_filtered_list_param.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::filtered_list_param_vote
+            cms_delete_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::can_delete_vote
+            cms_post_delete.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::CMS::post_delete_vote
         methods:
             ajaxrating_install_templates: AjaxRating::install_templates
         menus:
@@ -93,232 +120,169 @@ applications:
                     - website
                     - blog
     data_api:
-        endpoints:
-            #############################
-            ### VOTESUMMARY ENDPOINTS ###
-            #############################
-            -
-                id:                     ajaxrating_get_entry_votesummary
-                verb:                   GET
-                route:                  /sites/:site_id/entries/:entry_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
-                requires_login:         0
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           entry
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
-            -
-                id:                     ajaxrating_get_comment_votesummary
-                verb:                   GET
-                route:                  /sites/:site_id/entries/:entry_id/comments/:comment_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
-                requires_login:         0
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           comment
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
-            -
-                id:                     ajaxrating_get_blog_object_votesummary
-                verb:                   GET
-                route:                  /sites/:site_id/:obj_type/:obj_ids/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
-                requires_login:         0
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           entry
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
-            -
-                id:                     ajaxrating_get_object_votesummary
-                verb:                   GET
-                route:                  /ajaxrating/:obj_type/:obj_id
-                handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
-                requires_login:         0
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
-            -
-                id:                     ajaxrating_get_votesummary
-                verb:                   GET
-                route:                  /ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::get_votesummary
-                requires_login:         0
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
-            #############################
-            ###  ADD_VOTE ENDPOINTS   ###
-            #############################
-            -
-                id:                     ajaxrating_add_entry_vote
-                verb:                   POST
-                route:                  /sites/:site_id/entries/:entry_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           entry
-                error_codes:
-                    403:                Do not have permission to create the requested resource
-            -
-                id:                     ajaxrating_add_comment_vote
-                verb:                   POST
-                route:                  /sites/:site_id/entries/:entry_id/comments/:comment_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           comment
-                error_codes:
-                    403:                Do not have permission to create the requested resource
-            -
-                id:                     ajaxrating_add_blog_object_vote
-                verb:                   POST
-                route:                  /sites/:site_id/:obj_type/:obj_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to create the requested resource.
-            -
-                id:                     ajaxrating_add_object_vote
-                verb:                   POST
-                route:                  /ajaxrating/:obj_type/:obj_id
-                handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to create the requested resource.
-            -
-                id:                     ajaxrating_add_vote
-                verb:                   POST
-                route:                  /ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::add_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to create the requested resource.
-            #############################
-            ### REMOVE_VOTE ENDPOINTS ###
-            #############################
-            -
-                id:                     ajaxrating_remove_entry_vote
-                verb:                   DELETE
-                route:                  /sites/:site_id/entries/:entry_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           entry
-                error_codes:
-                    403:                Do not have permission to create the requested resource
-            -
-                id:                     ajaxrating_remove_comment_vote
-                verb:                   DELETE
-                route:                  /sites/:site_id/entries/:entry_id/comments/:comment_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           comment
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
-            -
-                id:                     ajaxrating_remove_blog_object_vote
-                verb:                   DELETE
-                route:                  /sites/:site_id/:obj_type/:obj_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to create the requested resource.
-            -
-                id:                     ajaxrating_remove_object_vote
-                verb:                   DELETE
-                route:                  /ajaxrating/:obj_type/:obj_id
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to create the requested resource.
-            -
-                id:                     ajaxrating_remove_vote
-                verb:                   DELETE
-                route:                  /ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to create the requested resource.
-            ###############################
-            ###   VOTE OBJECT ENDPOINTS ###
-            ###############################
-            -
-                id:                     ajaxrating_get_vote
-                verb:                   GET
-                route:                  /ajaxrating/votes/:vote_id
-                handler:                $AjaxRating::AjaxRating::DataAPI::get_vote
-                requires_login:         0
-                version:                1
-                default_params:
-                    format:             json
-                    obj_type:           entry
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
-            -
-                id:                     ajaxrating_remove_vote
-                verb:                   DELETE
-                route:                  /ajaxrating/votes/:vote_id
-                handler:                $AjaxRating::AjaxRating::DataAPI::remove_vote_by_id
-                requires_login:         1
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to delete the requested resource.
-            ################################
-            ###  USER RATING ENDPOINTS   ###
-            ################################
-            -
-                id:                     ajaxrating_get_user_ratings
-                verb:                   GET
-                route:                  /users/:user_id/ajaxrating
-                handler:                $AjaxRating::AjaxRating::DataAPI::get_user_ratings
-                requires_login:         0
-                version:                1
-                default_params:
-                    format:             json
-                error_codes:
-                    403:                Do not have permission to retrieve the requested content.
+        callbacks:
+            data_api_save_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::save_filter
+            data_api_save_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::can_save
+            data_api_pre_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::pre_save
+            data_api_post_save.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::post_save
+            data_api_list_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::can_view
+            data_api_pre_load_filtered_list.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::pre_load_filtered_list
+            data_api_delete_permission_filter.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::can_delete
+            data_api_post_delete.ajaxrating_vote:
+                handler: $AjaxRating::AjaxRating::DataAPI::Callback::Vote::post_delete
         resources:
-            entry:
-                fields: $AjaxRating::AjaxRating::DataAPI::Resources::entry_summary
+            DEFAULT:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Foreign::fields
+            blog:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Blog::fields
+            ajaxrating_vote:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Vote::fields
+            ajaxrating_votesummary:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::VoteSummary::fields
+            ajaxrating_hotobject:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::HotObject::fields
+            ar_vote:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::Vote::fields
+            ar_votesumm:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::VoteSummary::fields
+            ar_hotobj:
+                version: 1
+                fields: $AjaxRating::AjaxRating::DataAPI::Resource::HotObject::fields
 
+        endpoints:
+            ################# >>################################################
+            ### ENDPOINTS ### >> See possible future endpoints in 000NOTES.txt #
+            ################# >>################################################
+
+            ###
+            ### Fetch object vote summar(y|ies)
+            ###     (aka "rating(s)")
+            ###
+            -
+                id:                     ar_object_fetch_summary
+                verb:                   GET
+                route:                  /ar/:obj_type/:obj_ids
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::VoteSummary::fetch
+                requires_login:         0
+                version:                1
+                default_params:
+                    sortBy:             id
+                    limit:              10
+                    id_param:           obj_ids
+                error_codes:
+                    403:                Do not have permission to retrieve this resource.
+
+            ###
+            ### Get a listing of votes on object(s):
+            ###
+            -
+                id:                     ar_object_list_votes
+                verb:                   GET
+                route:                  /ar/:obj_type/:obj_ids/list
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::list
+                requires_login:         0
+                version:                1
+                default_params:
+                    sortBy:             id
+                    limit:              10
+                    id_param:           obj_ids
+                error_codes:
+                    403:                Do not have permission to retrieve this resource.
+
+            ###
+            ### Vote on an object.
+            ###     Requires payload of { "score": N }
+            ###
+            -
+                id:                     ar_object_add_vote
+                verb:                   POST
+                route:                  /ar/:obj_type/:obj_id/vote
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::add
+                requires_login:         1
+                version:                1
+                default_params:
+                    id_param:           obj_id
+                error_codes:
+                    403:                Do not have permission to create this resource.
+
+            ###
+            ### Fetch your previously submitted vote(s)
+            ###
+            -
+                id:                     ar_object_fetch_vote
+                verb:                   GET
+                route:                  /ar/:obj_type/:obj_ids/vote
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::fetch
+                requires_login:         1
+                version:                1
+                default_params:
+                    sortBy:             id
+                    limit:              10
+                    id_param:           obj_ids
+                error_codes:
+                    403:                Do not have permission to retrieve this resource.
+
+            ###
+            ### Remove your previously submitted vote(s)
+            ###
+            -
+                id:                     ar_object_remove_vote
+                verb:                   DELETE
+                route:                  /ar/:obj_type/:obj_ids/vote
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::remove
+                requires_login:         1
+                version:                1
+                default_params:
+                    id_param:           obj_ids
+                error_codes:
+                    403:                Do not have permission to remove this resource.
+
+            ###
+            ### Fetch vote(s) by ID
+            ###
+            -
+                id:                     ar_get_vote_by_id
+                verb:                   GET
+                route:                  /ar/votes/:vote_ids
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::fetch_by_id
+                requires_login:         1
+                version:                1
+                default_params:
+                    obj_type:           vote
+                    sortBy:             id
+                    limit:              10
+                error_codes:
+                    403:                Do not have permission to retrieve this resource.
+
+            ###
+            ### Remove vote(s) by ID
+            ###
+            -
+                id:                     ar_remove_vote_by_id
+                verb:                   DELETE
+                route:                  /ar/votes/:vote_ids
+                handler:                $AjaxRating::AjaxRating::DataAPI::Endpoint::Vote::remove_by_id
+                requires_login:         1
+                version:                1
+                default_params:
+                    obj_type:           vote
+                    id_param:           obj_ids
+                error_codes:
+                    403:                Do not have permission to delete this resource.
 
 tasks:
     refresh_hotobjects:
@@ -338,10 +302,9 @@ tasks:
 
 
 blog_config_template:
-    code: AjaxRating::template
+    code: $AjaxRating::AjaxRating::blog_config_template
 
-system_config_template:
-    code: AjaxRating::system_template
+system_config_template: system_config_template.tmpl
 
 settings:
     entry_mode:
@@ -375,36 +338,36 @@ settings:
 
 tags:
     function:
-       AjaxRating:                     AjaxRating::ajax_rating
-       AjaxRatingAverageScore:         AjaxRating::ajax_rating_avg_score
-       AjaxRatingAvgScore:             AjaxRating::ajax_rating_avg_score
-       AjaxRatingTotalScore:           AjaxRating::ajax_rating_total_score
-       AjaxRatingVoteCount:            AjaxRating::ajax_rating_vote_count
-       AjaxRatingTotalVotesInBlog:     AjaxRating::ajax_rating_total_votes_in_blog
-       AjaxRater:                      AjaxRating::rater
-       AjaxStarRater:                  AjaxRating::star_rater
-       AjaxThumbRater:                 AjaxRating::thumb_rater
-       AjaxRaterOnclickJS:             AjaxRating::rater_onclick_js
-       AjaxRatingEntryMax:             AjaxRating::entry_max
-       AjaxRatingCommentMax:           AjaxRating::comment_max
-       AjaxStarRaterWidth:             AjaxRating::star_rater_width
-       AjaxStarRaterAverageScoreWidth: AjaxRating::star_rater_avg_score_width
-       AjaxStarUnitWidth:              AjaxRating::star_unit_width
-       AjaxRatingDefaultThreshold:     AjaxRating::default_threshold
-       AjaxRatingRefreshHot:           AjaxRating::refresh_hot
-       AjaxRatingUserVoteCount:        AjaxRating::ajax_rating_user_vote_count
+       AjaxRating:                     $AjaxRating::AjaxRating::ajax_rating
+       AjaxRatingAverageScore:         $AjaxRating::AjaxRating::ajax_rating_avg_score
+       AjaxRatingAvgScore:             $AjaxRating::AjaxRating::ajax_rating_avg_score
+       AjaxRatingTotalScore:           $AjaxRating::AjaxRating::ajax_rating_total_score
+       AjaxRatingVoteCount:            $AjaxRating::AjaxRating::ajax_rating_vote_count
+       AjaxRatingTotalVotesInBlog:     $AjaxRating::AjaxRating::ajax_rating_total_votes_in_blog
+       AjaxRater:                      $AjaxRating::AjaxRating::rater
+       AjaxStarRater:                  $AjaxRating::AjaxRating::star_rater
+       AjaxThumbRater:                 $AjaxRating::AjaxRating::thumb_rater
+       AjaxRaterOnclickJS:             $AjaxRating::AjaxRating::rater_onclick_js
+       AjaxRatingEntryMax:             $AjaxRating::AjaxRating::entry_max
+       AjaxRatingCommentMax:           $AjaxRating::AjaxRating::comment_max
+       AjaxStarRaterWidth:             $AjaxRating::AjaxRating::star_rater_width
+       AjaxStarRaterAverageScoreWidth: $AjaxRating::AjaxRating::star_rater_avg_score_width
+       AjaxStarUnitWidth:              $AjaxRating::AjaxRating::star_unit_width
+       AjaxRatingDefaultThreshold:     $AjaxRating::AjaxRating::default_threshold
+       AjaxRatingRefreshHot:           $AjaxRating::AjaxRating::refresh_hot
+       AjaxRatingUserVoteCount:        $AjaxRating::AjaxRating::ajax_rating_user_vote_count
     block:
        IfAjaxRatingBelowThreshold?: AjaxRating::below_threshold
-       AjaxRatingList:                AjaxRating::listing
-       AjaxRatingEntries:             AjaxRating::listing_entries
-       AjaxRatingComments:            AjaxRating::listing_comments
-       AjaxRatingPings:               AjaxRating::listing_pings
-       AjaxRatingBlogs:               AjaxRating::listing_blogs
-       AjaxRatingCategories:          AjaxRating::listing_categories
-       AjaxRatingTags:                AjaxRating::listing_tags
-       AjaxRatingAuthors:             AjaxRating::listing_authors
-       AjaxRatingUserVotes:           AjaxRating::listing_user_votes
-       AjaxRatingVoteDistribution:    AjaxRating::listing_vote_distribution
+       AjaxRatingList:                $AjaxRating::AjaxRating::listing
+       AjaxRatingEntries:             $AjaxRating::AjaxRating::listing_entries
+       AjaxRatingComments:            $AjaxRating::AjaxRating::listing_comments
+       AjaxRatingPings:               $AjaxRating::AjaxRating::listing_pings
+       AjaxRatingBlogs:               $AjaxRating::AjaxRating::listing_blogs
+       AjaxRatingCategories:          $AjaxRating::AjaxRating::listing_categories
+       AjaxRatingTags:                $AjaxRating::AjaxRating::listing_tags
+       AjaxRatingAuthors:             $AjaxRating::AjaxRating::listing_authors
+       AjaxRatingUserVotes:           $AjaxRating::AjaxRating::listing_user_votes
+       AjaxRatingVoteDistribution:    $AjaxRating::AjaxRating::listing_vote_distribution
 
 socialstats_services:
   ajaxrating:
@@ -429,8 +392,12 @@ listing_screens:
         default_sort_key: created_on
 
 list_properties:
-    ajaxrating_vote: $AjaxRating::AjaxRating::Vote::list_properties
-    ajaxrating_votesummary: $AjaxRating::AjaxRating::VoteSummary::list_properties
+    ajaxrating_vote:        $AjaxRating::AjaxRating::Object::Vote::list_properties
+    ar_vote:                $AjaxRating::AjaxRating::Object::Vote::list_properties
+    ajaxrating_votesummary: $AjaxRating::AjaxRating::Object::VoteSummary::list_properties
+    ar_votesumm:            $AjaxRating::AjaxRating::Object::VoteSummary::list_properties
+    ajaxrating_hotobject:   $AjaxRating::AjaxRating::Object::HotObject::list_properties
+    ar_hotobj:              $AjaxRating::AjaxRating::Object::HotObject::list_properties
 
 system_filters:
     # Note that the same filters are being used for the Vote and Summary records
