@@ -264,7 +264,10 @@ sub star_rater_width {
     my $max_setting     = ($args->{type} || 'entry') . '_max_points';
     my ( $max, $width )
         = get_config( $ctx->stash('blog'), $max_setting, 'unit_width');
-    return ($max||0) + ($width||0);
+    # The value for Entry Max Points and Comments Max Points is a minimum of 1.
+    # The max value * the Star Icon Width = the maximum width of the star
+    # rating image.
+    return ($max||1) * ($width||0);
 }
 
 sub star_rater_avg_score_width {
