@@ -215,7 +215,7 @@ sub adjust_for_vote {
     # "X Stars has received Y votes"
     # Supply an empty string if there's no existing vote distribution --
     # which is true if this is a new vote summary object.
-    my $yaml = $self->compile_vote_dist();
+    my $yaml = YAML::Tiny->read_string( $self->vote_dist || '' );
 
     # Increase the vote tally for this score by 1, output and save the string
     $yaml->[0]->{$args->{score}} += ( $args->{remove} ? -1 : 1 );
